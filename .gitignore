@@ -1,1 +1,86 @@
-/.venv
+# Python
+*.py[cod]
+__pycache__/
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+bin/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+static/
+*.pot
+*.mo
+
+# Databases
+*.db
+*.rdb
+*.sqlite3
+*.psql
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.vs/
+*.sublime-workspace
+*.sublime-project
+
+# Environment
+.env
+.venv/
+env/
+venv/
+ENV/
+.python-version
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Dependencies
+node_modules/
+bower_components/
+*.pyc
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Coverage/Testing
+.coverage
+.tox/
+.pytest_cache/
+htmlcov/
+.coverage.*
+coverage.xml
+*.cover
+
+# Docker
+*.dockerfile
+docker-compose.override.yml
+
+# Local development
+*.bak
+*.tmp
+*.temp
