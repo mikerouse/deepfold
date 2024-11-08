@@ -1,0 +1,10 @@
+<!-- templates/accounts/tags/task_list.html -->
+<div class="task-list">
+    {% for task in tasks %}
+    <div class="task-item">
+        <h4>{{ task.title }}</h4>
+        <p>{{ task.description }}</p>
+        <span class="points">+{{ task.points }} points</span>
+    </div>
+    {% endfor %}
+</div>

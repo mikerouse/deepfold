@@ -1,7 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
-from .forms import UserRegistrationForm, PublishingOutletForm
+from django.contrib.auth.views import LoginView
+from django.urls import reverse
+from .forms import UserRegistrationForm, PublishingOutletForm, OrganisationForm, OrganisationInviteForm
+from .models import Organisation, OrganisationInvite
 from django.contrib.auth.decorators import login_required
+from .decorators import profile_required
 
 def register(request):
     if request.method == "POST":
@@ -13,6 +17,82 @@ def register(request):
     else:
         form = UserRegistrationForm()
     return render(request, "accounts/register.html", {"form": form})
+
+class CustomLoginView(LoginView):
+    template_name = 'accounts/login.html'
+    
+    def get_success_url(self):
+        # Check if user belongs to organization
+        if not hasattr(self.request.user, 'organization'):
+            return reverse('complete_profile')
+            
+        # Regular users go to dashboard
+        return reverse('dashboard')
+
+@login_required
+def complete_profile(request):
+    if request.user.organisation:
+        return redirect("dashboard")
+
+    if request.method == "POST":
+        if 'create_organisation' in request.POST:
+            org_form = OrganisationForm(request.POST)
+            if org_form.is_valid():
+                organisation = org_form.save()
+                request.user.organisation = organisation
+                request.user.save()
+                return redirect("dashboard")
+        elif 'join_organisation' in request.POST:
+            invite_form = OrganisationInviteForm(request.POST)
+            if invite_form.is_valid():
+                try:
+                    invite = OrganisationInvite.objects.get(invite_code=invite_form.cleaned_data['invite_code'])
+                    request.user.organisation = invite.organisation
+                    request.user.save()
+                    return redirect("dashboard")
+                except OrganisationInvite.DoesNotExist:
+                    invite_form.add_error('invite_code', 'Invalid invite code')
+    else:
+        org_form = OrganisationForm()
+        invite_form = OrganisationInviteForm()
+
+    return render(request, "accounts/complete_profile.html", {
+        "org_form": org_form,
+        "invite_form": invite_form,
+    })
+    
+@login_required
+def manage_profile(request):
+    if request.method == "POST":
+        if 'update_org' in request.POST:
+            org_form = OrganisationForm(request.POST, instance=request.user.organisation)
+            if org_form.is_valid():
+                org_form.save()
+                return redirect('manage_profile')
+        elif 'join_org' in request.POST:
+            invite_form = OrganisationInviteForm(request.POST)
+            if invite_form.is_valid():
+                try:
+                    invite = OrganisationInvite.objects.get(
+                        invite_code=invite_form.cleaned_data['invite_code']
+                    )
+                    request.user.organisation = invite.organisation
+                    request.user.save()
+                    return redirect('manage_profile')
+                except OrganisationInvite.DoesNotExist:
+                    invite_form.add_error('invite_code', 'Invalid invite code')
+        elif 'generate_invite' in request.POST:
+            invite_code = request.user.organisation.generate_invite_code()
+            return render(request, 'accounts/manage_profile.html', {
+                'org_form': OrganisationForm(instance=request.user.organisation),
+                'invite_form': OrganisationInviteForm(),
+                'invite_code': invite_code
+            })
+
+    return render(request, 'accounts/manage_profile.html', {
+        'org_form': OrganisationForm(instance=request.user.organisation),
+        'invite_form': OrganisationInviteForm(),
+    })
 
 @login_required
 def add_outlet(request):

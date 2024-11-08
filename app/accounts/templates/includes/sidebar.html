@@ -1,0 +1,20 @@
+<!-- templates/includes/sidebar.html -->
+{% load sidebar_tags %}
+<div class="sidebar-nav">
+    <nav>
+        <ul>
+            <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+            <li><a href="{% url 'add_outlet' %}">Add Outlet</a></li>
+            <li><a href="{% url 'manage_profile' %}">Manage Profile</a></li>
+        </ul>
+    </nav>
+
+    <div class="tasks-widget">
+        <h3>Tasks for You</h3>
+        <div class="awesomeness-meter">
+            <h4>Account Awesomeness</h4>
+            <div class="score">{{ request.user.userprofile.awesomeness_score }}</div>
+        </div>
+        {% render_tasks request.user %}
+    </div>
+</div>

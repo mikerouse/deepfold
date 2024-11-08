@@ -1,0 +1,20 @@
+<!-- accounts/templates/accounts/complete_profile.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Complete Your Profile</h2>
+
+<h3>Create Organisation</h3>
+<form method="post">
+    {% csrf_token %}
+    {{ org_form.as_p }}
+    <button type="submit" name="create_organisation">Create Organisation</button>
+</form>
+
+<h3>Join Organisation</h3>
+<form method="post">
+    {% csrf_token %}
+    {{ invite_form.as_p }}
+    <button type="submit" name="join_organisation">Join Organisation</button>
+</form>
+{% endblock %}

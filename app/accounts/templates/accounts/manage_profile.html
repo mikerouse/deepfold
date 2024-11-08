@@ -1,0 +1,32 @@
+<!-- templates/accounts/manage_profile.html -->
+{% extends "base.html" %}
+{% block content %}
+<h2>Manage Profile</h2>
+
+{% if request.user.organisation %}
+    <h3>Update Organisation Details</h3>
+    <form method="post">
+        {% csrf_token %}
+        {{ org_form.as_p }}
+        <button type="submit" name="update_org">Update Organisation</button>
+    </form>
+
+    <h3>Generate Invite Code</h3>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" name="generate_invite">Generate New Invite Code</button>
+    </form>
+    {% if invite_code %}
+        <div class="invite-code">
+            New Invite Code: {{ invite_code }}
+        </div>
+    {% endif %}
+{% endif %}
+
+<h3>Join Different Organisation</h3>
+<form method="post">
+    {% csrf_token %}
+    {{ invite_form.as_p }}
+    <button type="submit" name="join_org">Join Organisation</button>
+</form>
+{% endblock %}

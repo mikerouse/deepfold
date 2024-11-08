@@ -1,3 +1,6 @@
+{% extends "base.html" %}
+
+{% block content %}
 <h2>Your Publishing Outlets</h2>
 <ul>
     {% for outlet in outlets %}
@@ -7,3 +10,4 @@
 <form action="{% url 'add_outlet' %}" method="get">
     <button type="submit">Add another outlet</button>
 </form>
+{% endblock %}
