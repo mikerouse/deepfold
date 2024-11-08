@@ -1,0 +1,4 @@
+Django>=5.1
+mysqlclient
+dj-database-url
+python-dotenv

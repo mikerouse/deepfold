@@ -1,0 +1,36 @@
+services:
+  db:
+    image: mariadb:latest
+    environment:
+      MYSQL_DATABASE: deepfold_db
+      MYSQL_USER: deepfold_user
+      MYSQL_PASSWORD: mtr66b4A
+      MYSQL_ROOT_PASSWORD: root_password
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - deepfold_network
+
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./app:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    env_file:
+      - .env
+    networks:
+      - deepfold_network
+
+volumes:
+  mariadb_data:
+
+networks:
+  deepfold_network:

@@ -1,0 +1,12 @@
+Metadata-Version: 2.1
+Name: deepfold
+Version: 0.1.0
+Summary: A Django project for managing publishing outlets
+Author-email: Your Name <your.email@example.com>
+License: MIT
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: Django==4.1
+Requires-Dist: mysqlclient
+Requires-Dist: dj-database-url
+Requires-Dist: python-dotenv
