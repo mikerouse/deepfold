@@ -12,6 +12,6 @@ def create_user_profile(sender, instance, created, **kwargs):
             user=instance,
             task_type='PROFILE',
             title='Complete Your Profile',
-            description='Add your organization details to unlock more features',
+            description='Add your organisation details to unlock more features',
             points=10
         )

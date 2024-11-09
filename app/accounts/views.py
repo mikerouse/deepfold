@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
+from django.utils import timezone
 from django.urls import reverse
 from .forms import (
     UserRegistrationForm, 
@@ -13,7 +14,8 @@ from .forms import (
 from .models import (
     Organisation, 
     OrganisationInvite,
-    AddressConfiguration
+    AddressConfiguration,
+    Task
 )
 from django.contrib.auth.decorators import login_required
 from .decorators import profile_required
@@ -33,10 +35,10 @@ class CustomLoginView(LoginView):
     template_name = 'accounts/login.html'
     
     def get_success_url(self):
-        # Check if user belongs to organization
-        if not hasattr(self.request.user, 'organization'):
+        # Corrected field name from 'organization' to 'organisation'
+        if not hasattr(self.request.user, 'organisation') or not self.request.user.organisation:
             return reverse('complete_profile')
-            
+        
         # Regular users go to dashboard
         return reverse('dashboard')
 
@@ -44,16 +46,11 @@ class CustomLoginView(LoginView):
 def complete_profile(request):
     if request.user.organisation:
         return redirect("dashboard")
-
     if request.method == "POST":
         if 'create_organisation' in request.POST:
             org_form = OrganisationForm(request.POST)
-            address_form = AddressForm(request.POST, prefix='address')
-            if org_form.is_valid() and address_form.is_valid():
-                address = address_form.save()
-                organisation = org_form.save(commit=False)
-                organisation.address = address
-                organisation.save()
+            if org_form.is_valid():
+                organisation = org_form.save()
                 request.user.organisation = organisation
                 request.user.save()
                 return redirect("dashboard")
@@ -70,7 +67,6 @@ def complete_profile(request):
     else:
         org_form = OrganisationForm()
         invite_form = OrganisationInviteForm()
-
     return render(request, "accounts/complete_profile.html", {
         "org_form": org_form,
         "invite_form": invite_form,
@@ -83,6 +79,17 @@ def manage_profile(request):
             org_form = OrganisationForm(request.POST, instance=request.user.organisation)
             if org_form.is_valid():
                 org_form.save()
+                
+                # Mark the 'Complete Your Profile' task as completed
+                try:
+                    task = request.user.tasks.get(task_type='PROFILE')
+                    if not task.completed:
+                        task.completed = True
+                        task.completed_at = timezone.now()
+                        task.save()
+                except Task.DoesNotExist:
+                    pass
+                
                 return redirect('manage_profile')
         elif 'join_org' in request.POST:
             invite_form = OrganisationInviteForm(request.POST)

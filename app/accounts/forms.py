@@ -22,13 +22,21 @@ class AddressForm(forms.ModelForm):
         fields = ['line1', 'line2', 'line3', 'city', 'region', 'postal_code', 'country']
 
     def __init__(self, *args, **kwargs):
-        configuration = kwargs.pop('configuration', None)
+        self.configuration = kwargs.pop('configuration', None)
         super().__init__(*args, **kwargs)
-        if configuration:
-            enabled_fields = configuration.fields.filter(enabled=True)
+        if self.configuration:
+            enabled_fields = self.configuration.fields.filter(enabled=True)
             for field in enabled_fields:
                 self.fields[field.name].label = field.label
                 self.fields[field.name].required = field.required
+    
+    def save(self, commit=True):
+        address = super().save(commit=False)
+        if self.configuration:
+            address.configuration = self.configuration
+        if commit:
+            address.save()
+        return address
 
 class OrganisationForm(forms.ModelForm):
     class Meta:
@@ -37,13 +45,20 @@ class OrganisationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
         if self.instance.pk:
             # Existing organisation: bind address_form with instance and data
+            
+            try:
+                physical_address = self.instance.physical_address
+            except Address.DoesNotExist:
+                physical_address = None
+                
             self.address_form = AddressForm(
                 self.data if self.is_bound else None,
-                instance=self.instance.address,
+                instance=physical_address,
                 prefix='address',
-                configuration=self.instance.address.configuration
+                configuration=physical_address.configuration if physical_address else None
             )
         else:
             # New organisation: use default AddressConfiguration
@@ -55,14 +70,18 @@ class OrganisationForm(forms.ModelForm):
                 prefix='address',
                 configuration=default_config
             )
+            
+    def is_valid(self):
+        return super().is_valid() and self.address_form.is_valid()
 
     def save(self, commit=True):
-        instance = super().save(commit=False)
+        organisation = super().save(commit=False)
         if commit:
-            address = self.address_form.save()
-            instance.address = address
-            instance.save()
-        return instance
+            address = self.address_form.save(commit=False)
+            address.organisation = organisation  # Associate Address with Organisation
+            address.save()
+            organisation.save()
+        return organisation
 
 class OrganisationInviteForm(forms.Form):
     invite_code = forms.CharField(max_length=10)
