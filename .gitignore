@@ -5,7 +5,6 @@ __pycache__/
 */*.py[cod]
 *.pyc
 */*.pyc
-*/*/*.pyc
 *$py.class
 *.so
 .Python
@@ -103,4 +102,3 @@ coverage.xml
 # Documentation
 docs/_build/
 /site
-
