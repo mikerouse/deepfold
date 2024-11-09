@@ -1,10 +1,16 @@
+<!-- app/accounts/templates/accounts/publications.html -->
 {% extends "base.html" %}
-
 {% block content %}
 <h2>Your Publishing Outlets</h2>
 <ul>
     {% for outlet in outlets %}
-        <li>{{ outlet.name }} - {{ outlet.url }}</li>
+        <li>
+            <a href="{% url 'publication_detail' outlet.pk %}">
+                {{ outlet.name }} - {{ outlet.url }}
+            </a>
+        </li>
+    {% empty %}
+        <li>No publications found. <a href="{% url 'add_outlet' %}">Add one</a>.</li>
     {% endfor %}
 </ul>
 <form action="{% url 'add_outlet' %}" method="get">

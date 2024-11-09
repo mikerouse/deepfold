@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
@@ -15,7 +15,8 @@ from .models import (
     Organisation, 
     OrganisationInvite,
     AddressConfiguration,
-    Task
+    Task,
+    PublishingOutlet
 )
 from django.contrib.auth.decorators import login_required
 from .decorators import profile_required
@@ -128,6 +129,8 @@ def add_outlet(request):
         if form.is_valid():
             outlet = form.save(commit=False)
             outlet.user = request.user
+            outlet.created = timezone.now()
+            outlet.modified = timezone.now()
             outlet.save()
             return redirect("publications")
     else:
@@ -138,3 +141,8 @@ def add_outlet(request):
 def publications(request):
     outlets = request.user.outlets.all()
     return render(request, "accounts/publications.html", {"outlets": outlets})
+
+@login_required
+def publication_detail(request, pk):
+    outlet = get_object_or_404(PublishingOutlet, pk=pk, user=request.user)
+    return render(request, "accounts/publication_detail.html", {"outlet": outlet})

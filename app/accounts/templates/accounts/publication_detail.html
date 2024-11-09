@@ -1,0 +1,8 @@
+<!-- app/accounts/templates/accounts/publication_detail.html -->
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ outlet.name }}</h2>
+<p><strong>URL:</strong> <a href="{{ outlet.url }}" target="_blank">{{ outlet.url }}</a></p>
+<p><strong>Description:</strong> {{ outlet.description }}</p>
+<p><strong>Created:</strong> {{ outlet.created }}</p>
+{% endblock %}

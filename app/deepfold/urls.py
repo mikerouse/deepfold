@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth.views import LoginView
-from accounts.views import register, add_outlet, publications, CustomLoginView
+from accounts.views import register, add_outlet, publications, publication_detail, CustomLoginView
 
 urlpatterns = [
     path("", CustomLoginView.as_view(), name="login"),
@@ -27,4 +27,5 @@ urlpatterns = [
     path("register/", register, name="register"),
     path("add_outlet/", add_outlet, name="add_outlet"),
     path("publications/", publications, name="publications"),
+    path("publications/<int:pk>/", publication_detail, name="publication_detail"),
 ]

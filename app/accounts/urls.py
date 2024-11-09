@@ -6,5 +6,6 @@ urlpatterns = [
     path("complete_profile/", views.complete_profile, name="complete_profile"),
     path("add_outlet/", views.add_outlet, name="add_outlet"),
     path("publications/", views.publications, name="publications"),
+    path("publications/<int:pk>/", views.publication_detail, name="publication_detail"),
     path("profile/", views.manage_profile, name="manage_profile"),
 ]
