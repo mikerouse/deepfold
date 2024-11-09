@@ -26,7 +26,7 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect("dashboard")
+            return redirect("publications")
     else:
         form = UserRegistrationForm()
     return render(request, "accounts/register.html", {"form": form})
@@ -39,13 +39,13 @@ class CustomLoginView(LoginView):
         if not hasattr(self.request.user, 'organisation') or not self.request.user.organisation:
             return reverse('complete_profile')
         
-        # Regular users go to dashboard
-        return reverse('dashboard')
+        # Regular users go to publications
+        return reverse('publications')
 
 @login_required
 def complete_profile(request):
     if request.user.organisation:
-        return redirect("dashboard")
+        return redirect("publications")
     if request.method == "POST":
         if 'create_organisation' in request.POST:
             org_form = OrganisationForm(request.POST)
@@ -53,7 +53,7 @@ def complete_profile(request):
                 organisation = org_form.save()
                 request.user.organisation = organisation
                 request.user.save()
-                return redirect("dashboard")
+                return redirect("publications")
         elif 'join_organisation' in request.POST:
             invite_form = OrganisationInviteForm(request.POST)
             if invite_form.is_valid():
@@ -61,7 +61,7 @@ def complete_profile(request):
                     invite = OrganisationInvite.objects.get(invite_code=invite_form.cleaned_data['invite_code'])
                     request.user.organisation = invite.organisation
                     request.user.save()
-                    return redirect("dashboard")
+                    return redirect("publications")
                 except OrganisationInvite.DoesNotExist:
                     invite_form.add_error('invite_code', 'Invalid invite code')
     else:
@@ -129,12 +129,12 @@ def add_outlet(request):
             outlet = form.save(commit=False)
             outlet.user = request.user
             outlet.save()
-            return redirect("dashboard")
+            return redirect("publications")
     else:
         form = PublishingOutletForm()
     return render(request, "accounts/add_outlet.html", {"form": form})
 
 @login_required
-def dashboard(request):
+def publications(request):
     outlets = request.user.outlets.all()
-    return render(request, "accounts/dashboard.html", {"outlets": outlets})
+    return render(request, "accounts/publications.html", {"outlets": outlets})
