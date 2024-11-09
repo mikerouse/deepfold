@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.core.exceptions import ValidationError
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
@@ -33,11 +34,81 @@ class Task(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        
+class AddressFieldConfiguration(models.Model):
+    configuration = models.ForeignKey(
+        'AddressConfiguration',
+        on_delete=models.CASCADE,
+        related_name='fields'
+    )
+    name = models.CharField(max_length=100)  # e.g. "postcode", "zip_code"
+    label = models.CharField(max_length=100)  # Display label
+    required = models.BooleanField(default=True)
+    enabled = models.BooleanField(default=True)
+    order = models.IntegerField()
+    
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.label} ({'required' if self.required else 'optional'})"
+
+class AddressConfiguration(models.Model):
+    name = models.CharField(max_length=100, unique=True)  # e.g. "UK", "US"
+    is_default = models.BooleanField(default=False)
+    
+    def save(self, *args, **kwargs):
+        if self.is_default:
+            # Ensure only one default configuration
+            AddressConfiguration.objects.filter(
+                is_default=True
+            ).update(is_default=False)
+        super().save(*args, **kwargs)
+        
+    def __str__(self):
+        return f"{self.name} {'(Default)' if self.is_default else ''}"
+
+class Address(models.Model):
+    configuration = models.ForeignKey(
+        AddressConfiguration, 
+        on_delete=models.PROTECT,
+        related_name='addresses'
+    )
+    organisation = models.OneToOneField(
+        'Organisation',
+        on_delete=models.CASCADE,
+        related_name='physical_address',
+        null=True
+    )
+    line1 = models.CharField(max_length=255, blank=True)
+    line2 = models.CharField(max_length=255, blank=True)
+    line3 = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=255, blank=True)
+    region = models.CharField(max_length=255, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=2, blank=True)
+    
+    def clean(self):
+        required_fields = self.configuration.fields.filter(
+            required=True, 
+            enabled=True
+        )
+        for field in required_fields:
+            if not getattr(self, field.name):
+                raise ValidationError(f"{field.label} is required")
+            
+    def __str__(self):
+        config = self.configuration
+        enabled_fields = config.addressfieldconfiguration_set.filter(enabled=True)
+        parts = []
+        for field in enabled_fields:
+            value = getattr(self, field.name)
+            if value:
+                parts.append(str(value))
+        return ", ".join(parts)
     
 class Organisation(models.Model):
     name = models.CharField(max_length=255)
-    address = models.TextField()
-    postcode = models.CharField(max_length=10)
     admin_email = models.EmailField()
     
     def generate_invite_code(self):

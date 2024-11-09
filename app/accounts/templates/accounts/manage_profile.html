@@ -3,14 +3,16 @@
 {% block content %}
 <h2>Manage Profile</h2>
 
-{% if request.user.organisation %}
+
     <h3>Update Organisation Details</h3>
     <form method="post">
         {% csrf_token %}
         {{ org_form.as_p }}
+        {{ org_form.address_form.as_p }}
         <button type="submit" name="update_org">Update Organisation</button>
     </form>
 
+{% if request.user.organisation %}
     <h3>Generate Invite Code</h3>
     <form method="post">
         {% csrf_token %}

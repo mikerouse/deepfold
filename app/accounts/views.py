@@ -1,9 +1,20 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.urls import reverse
-from .forms import UserRegistrationForm, PublishingOutletForm, OrganisationForm, OrganisationInviteForm
-from .models import Organisation, OrganisationInvite
+from .forms import (
+    UserRegistrationForm, 
+    PublishingOutletForm, 
+    OrganisationForm, 
+    OrganisationInviteForm,
+    AddressForm
+)
+from .models import (
+    Organisation, 
+    OrganisationInvite,
+    AddressConfiguration
+)
 from django.contrib.auth.decorators import login_required
 from .decorators import profile_required
 
@@ -37,8 +48,12 @@ def complete_profile(request):
     if request.method == "POST":
         if 'create_organisation' in request.POST:
             org_form = OrganisationForm(request.POST)
-            if org_form.is_valid():
-                organisation = org_form.save()
+            address_form = AddressForm(request.POST, prefix='address')
+            if org_form.is_valid() and address_form.is_valid():
+                address = address_form.save()
+                organisation = org_form.save(commit=False)
+                organisation.address = address
+                organisation.save()
                 request.user.organisation = organisation
                 request.user.save()
                 return redirect("dashboard")
@@ -78,20 +93,25 @@ def manage_profile(request):
                     )
                     request.user.organisation = invite.organisation
                     request.user.save()
-                    return redirect('manage_profile')
+                    return redirect("manage_profile")
                 except OrganisationInvite.DoesNotExist:
                     invite_form.add_error('invite_code', 'Invalid invite code')
         elif 'generate_invite' in request.POST:
             invite_code = request.user.organisation.generate_invite_code()
+            org_form = OrganisationForm(instance=request.user.organisation)
+            invite_form = OrganisationInviteForm()
             return render(request, 'accounts/manage_profile.html', {
-                'org_form': OrganisationForm(instance=request.user.organisation),
-                'invite_form': OrganisationInviteForm(),
+                'org_form': org_form,
+                'invite_form': invite_form,
                 'invite_code': invite_code
             })
-
+    else:
+        org_form = OrganisationForm(instance=request.user.organisation)
+        invite_form = OrganisationInviteForm()
+    
     return render(request, 'accounts/manage_profile.html', {
-        'org_form': OrganisationForm(instance=request.user.organisation),
-        'invite_form': OrganisationInviteForm(),
+        'org_form': org_form,
+        'invite_form': invite_form,
     })
 
 @login_required

@@ -2,6 +2,10 @@
 __pycache__/
 */__pycache__/
 *.py[cod]
+*/*.py[cod]
+*.pyc
+*/*.pyc
+*/*/*.pyc
 *$py.class
 *.so
 .Python
