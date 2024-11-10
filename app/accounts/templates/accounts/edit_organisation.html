@@ -1,0 +1,11 @@
+<!-- app/accounts/templates/accounts/edit_organisation.html -->
+{% extends "base.html" %}
+{% block content %}
+<h2>Edit Organisation Details</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save Changes</button>
+</form>
+<a href="{% url 'manage_profile' %}">Back to Profile</a>
+{% endblock %}

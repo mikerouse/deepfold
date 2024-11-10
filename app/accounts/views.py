@@ -9,7 +9,8 @@ from .forms import (
     PublishingOutletForm, 
     OrganisationForm, 
     OrganisationInviteForm,
-    AddressForm
+    AddressForm,
+    UserUpdateForm
 )
 from .models import (
     Organisation, 
@@ -42,6 +43,19 @@ class CustomLoginView(LoginView):
         
         # Regular users go to publications
         return reverse('publications')
+    
+@login_required
+def edit_personal_details(request):
+    if request.method == "POST":
+        form = UserUpdateForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Your personal details have been updated successfully.")
+            return redirect("manage_profile")
+    else:
+        form = UserUpdateForm(instance=request.user)
+    
+    return render(request, "accounts/edit_personal_details.html", {"form": form})
 
 @login_required
 def complete_profile(request):
@@ -103,23 +117,35 @@ def add_addresses(request):
     })
     
 @login_required
-def manage_profile(request):
+def edit_organisation(request):
+    if not request.user.organisation:
+        messages.warning(request, "You need to create or join an organisation before editing.")
+        return redirect("complete_profile")
+    
+    organisation = request.user.organisation
     if request.method == "POST":
+        form = OrganisationForm(request.POST, instance=organisation)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Organisation details have been updated successfully.")
+            return redirect("manage_profile")
+    else:
+        form = OrganisationForm(instance=organisation)
+    
+    return render(request, "accounts/edit_organisation.html", {"form": form})
+    
+@login_required
+def manage_profile(request):
+    organisation = request.user.organisation
+    addresses = organisation.addresses.all() if organisation else []
+    
+    if request.method == "POST":
+        # Handle POST actions if any
         if 'update_org' in request.POST:
-            org_form = OrganisationForm(request.POST, instance=request.user.organisation)
+            org_form = OrganisationForm(request.POST, instance=organisation)
             if org_form.is_valid():
                 org_form.save()
-                
-                # Mark the 'Complete Your Profile' task as completed
-                try:
-                    task = request.user.tasks.get(task_type='PROFILE')
-                    if not task.completed:
-                        task.completed = True
-                        task.completed_at = timezone.now()
-                        task.save()
-                except Task.DoesNotExist:
-                    pass
-                
+                messages.success(request, "Organisation details updated successfully.")
                 return redirect('manage_profile')
         elif 'join_org' in request.POST:
             invite_form = OrganisationInviteForm(request.POST)
@@ -130,25 +156,17 @@ def manage_profile(request):
                     )
                     request.user.organisation = invite.organisation
                     request.user.save()
+                    messages.success(request, "Organisation joined successfully.")
                     return redirect("manage_profile")
                 except OrganisationInvite.DoesNotExist:
                     invite_form.add_error('invite_code', 'Invalid invite code')
         elif 'generate_invite' in request.POST:
-            invite_code = request.user.organisation.generate_invite_code()
-            org_form = OrganisationForm(instance=request.user.organisation)
-            invite_form = OrganisationInviteForm()
-            return render(request, 'accounts/manage_profile.html', {
-                'org_form': org_form,
-                'invite_form': invite_form,
-                'invite_code': invite_code
-            })
-    else:
-        org_form = OrganisationForm(instance=request.user.organisation)
-        invite_form = OrganisationInviteForm()
+            invite_code = organisation.generate_invite_code()
+            messages.success(request, f"Invite code generated: {invite_code}")
     
     return render(request, 'accounts/manage_profile.html', {
-        'org_form': org_form,
-        'invite_form': invite_form,
+        'organisation': organisation,
+        'addresses': addresses,
     })
 
 @login_required

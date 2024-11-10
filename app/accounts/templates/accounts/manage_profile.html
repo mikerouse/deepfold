@@ -2,13 +2,33 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Manage Profile</h2>
-<h3>Organisation Details</h3>
-<p><strong>Name:</strong> {{ organisation.name }}</p>
-<p><strong>Admin Email:</strong> {{ organisation.admin_email }}</p>
 
+<!-- Personal Details Section -->
+<h3>Personal Details</h3>
+<p><strong>First Name:</strong> {{ user.first_name }}</p>
+<p><strong>Last Name:</strong> {{ user.last_name }}</p>
+<p><strong>Email:</strong> {{ user.email }}</p>
+<a href="{% url 'edit_personal_details' %}">Edit Personal Details</a>
+
+<hr>
+
+<!-- Organisation Details Section -->
+<h3>Organisation Details</h3>
+{% if organisation %}
+    <p><strong>Name:</strong> {{ organisation.name }}</p>
+    <p><strong>Admin Email:</strong> {{ organisation.admin_email }}</p>
+    <a href="{% url 'edit_organisation' %}">Edit Organisation</a>
+{% else %}
+    <p>No organisation associated with your account.</p>
+    <a href="{% url 'complete_profile' %}">Complete Profile</a>
+{% endif %}
+
+<hr>
+
+<!-- Addresses Section -->
 <h3>Addresses</h3>
 <ul>
-    {% for address in addresses %}
+    {% for address in organisation.addresses.all %}
         <li>
             <strong>{{ address.get_address_type_display }}</strong>:<br>
             {{ address.line1 }}<br>
@@ -22,4 +42,5 @@
     {% endfor %}
 </ul>
 <a href="{% url 'add_addresses' %}">Add Organisation Address</a>
+
 {% endblock %}

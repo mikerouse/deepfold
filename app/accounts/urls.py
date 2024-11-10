@@ -9,4 +9,6 @@ urlpatterns = [
     path("publications/", views.publications, name="publications"),
     path("publications/<int:pk>/", views.publication_detail, name="publication_detail"),
     path("profile/", views.manage_profile, name="manage_profile"),
+    path("edit_personal_details/", views.edit_personal_details, name="edit_personal_details"),
+    path("edit_organisation/", views.edit_organisation, name="edit_organisation"),
 ]
