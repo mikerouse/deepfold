@@ -19,24 +19,20 @@ class UserRegistrationForm(UserCreationForm):
 class AddressForm(forms.ModelForm):
     class Meta:
         model = Address
-        fields = ['line1', 'line2', 'line3', 'city', 'region', 'postal_code', 'country']
-
-    def __init__(self, *args, **kwargs):
-        self.configuration = kwargs.pop('configuration', None)
-        super().__init__(*args, **kwargs)
-        if self.configuration:
-            enabled_fields = self.configuration.fields.filter(enabled=True)
-            for field in enabled_fields:
-                self.fields[field.name].label = field.label
-                self.fields[field.name].required = field.required
+        fields = ['address_type', 'line1', 'line2', 'line3', 'city', 'region', 'postal_code', 'country']
     
-    def save(self, commit=True):
-        address = super().save(commit=False)
-        if self.configuration:
-            address.configuration = self.configuration
-        if commit:
-            address.save()
-        return address
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Dynamic labels from environment variables with defaults
+        self.fields['line1'].label = getattr(settings, 'ADDRESS_LABEL_LINE1', 'Address Line 1')
+        self.fields['line2'].label = getattr(settings, 'ADDRESS_LABEL_LINE2', 'Address Line 2')
+        self.fields['line3'].label = getattr(settings, 'ADDRESS_LABEL_LINE3', 'Address Line 3')
+        self.fields['city'].label = getattr(settings, 'ADDRESS_LABEL_CITY', 'City')
+        self.fields['region'].label = getattr(settings, 'ADDRESS_LABEL_REGION', 'Region/State')
+        self.fields['postal_code'].label = getattr(settings, 'ADDRESS_LABEL_POSTAL_CODE', 'Postal Code')
+        self.fields['country'].label = getattr(settings, 'ADDRESS_LABEL_COUNTRY', 'Country')
+
 
 class OrganisationForm(forms.ModelForm):
     class Meta:
