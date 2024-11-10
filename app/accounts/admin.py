@@ -8,41 +8,22 @@ from .models import (
     OrganisationInvite,
     PublishingOutlet,
     Address,
-    AddressConfiguration,
-    AddressFieldConfiguration
 )
-
-class AddressFieldConfigurationInline(admin.TabularInline):
-    model = AddressFieldConfiguration
-    extra = 1
-
-@admin.register(AddressConfiguration)
-class AddressConfigurationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'is_default']
-    inlines = [AddressFieldConfigurationInline]
+    
+class AddressInline(admin.StackedInline):
+    model = Address
+    
+@admin.register(Organisation)
+class OrganisationAdmin(admin.ModelAdmin):
+    list_display = ['name', 'admin_email']
+    search_fields = ['name', 'admin_email']
+    inlines = [AddressInline]
 
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
-    list_display = ['__str__', 'configuration']
-    list_filter = ['configuration']
-    
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        if obj:
-            enabled_fields = obj.configuration.fields.filter(
-                enabled=True
-            ).values_list('name', flat=True)
-            for field_name, field in form.base_fields.items():
-                if field_name not in enabled_fields:
-                    field.widget.attrs['disabled'] = True
-        return form
-
-class AddressInline(admin.StackedInline):
-    model = Address
-
-@admin.register(Organisation)
-class OrganisationAdmin(admin.ModelAdmin):
-    inlines = [AddressInline]
+    list_display = ['__str__', 'address_type', 'organisation']
+    list_filter = ['address_type', 'country']
+    search_fields = ['line1', 'line2', 'line3', 'city', 'region', 'postal_code', 'country']
 
 admin.site.register(User)
 admin.site.register(UserProfile)

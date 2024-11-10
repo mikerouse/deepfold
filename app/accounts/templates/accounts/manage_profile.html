@@ -1,34 +1,25 @@
-<!-- templates/accounts/manage_profile.html -->
+<!-- app/accounts/templates/accounts/manage_profile.html -->
 {% extends "base.html" %}
 {% block content %}
 <h2>Manage Profile</h2>
+<h3>Organisation Details</h3>
+<p><strong>Name:</strong> {{ organisation.name }}</p>
+<p><strong>Admin Email:</strong> {{ organisation.admin_email }}</p>
 
-
-    <h3>Update Organisation Details</h3>
-    <form method="post">
-        {% csrf_token %}
-        {{ org_form.as_p }}
-        {{ org_form.address_form.as_p }}
-        <button type="submit" name="update_org">Update Organisation</button>
-    </form>
-
-{% if request.user.organisation %}
-    <h3>Generate Invite Code</h3>
-    <form method="post">
-        {% csrf_token %}
-        <button type="submit" name="generate_invite">Generate New Invite Code</button>
-    </form>
-    {% if invite_code %}
-        <div class="invite-code">
-            New Invite Code: {{ invite_code }}
-        </div>
-    {% endif %}
-{% endif %}
-
-<h3>Join Different Organisation</h3>
-<form method="post">
-    {% csrf_token %}
-    {{ invite_form.as_p }}
-    <button type="submit" name="join_org">Join Organisation</button>
-</form>
+<h3>Addresses</h3>
+<ul>
+    {% for address in addresses %}
+        <li>
+            <strong>{{ address.get_address_type_display }}</strong>:<br>
+            {{ address.line1 }}<br>
+            {% if address.line2 %}{{ address.line2 }}<br>{% endif %}
+            {% if address.line3 %}{{ address.line3 }}<br>{% endif %}
+            {{ address.city }}, {{ address.region }}<br>
+            {{ address.postal_code }}, {{ address.country }}
+        </li>
+    {% empty %}
+        <li>No addresses available.</li>
+    {% endfor %}
+</ul>
+<a href="{% url 'add_addresses' %}">Add Address</a>
 {% endblock %}

@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -68,45 +69,6 @@ class AddressConfiguration(models.Model):
         
     def __str__(self):
         return f"{self.name} {'(Default)' if self.is_default else ''}"
-
-class Address(models.Model):
-    configuration = models.ForeignKey(
-        AddressConfiguration, 
-        on_delete=models.PROTECT,
-        related_name='addresses'
-    )
-    organisation = models.OneToOneField(
-        'Organisation',
-        on_delete=models.CASCADE,
-        related_name='physical_address',
-        null=True
-    )
-    line1 = models.CharField(max_length=255, blank=True)
-    line2 = models.CharField(max_length=255, blank=True)
-    line3 = models.CharField(max_length=255, blank=True)
-    city = models.CharField(max_length=255, blank=True)
-    region = models.CharField(max_length=255, blank=True)
-    postal_code = models.CharField(max_length=20, blank=True)
-    country = models.CharField(max_length=2, blank=True)
-    
-    def clean(self):
-        required_fields = self.configuration.fields.filter(
-            required=True, 
-            enabled=True
-        )
-        for field in required_fields:
-            if not getattr(self, field.name):
-                raise ValidationError(f"{field.label} is required")
-            
-    def __str__(self):
-        config = self.configuration
-        enabled_fields = config.addressfieldconfiguration_set.filter(enabled=True)
-        parts = []
-        for field in enabled_fields:
-            value = getattr(self, field.name)
-            if value:
-                parts.append(str(value))
-        return ", ".join(parts)
     
 class Organisation(models.Model):
     name = models.CharField(max_length=255)
@@ -143,8 +105,58 @@ class PublishingOutlet(models.Model):
     def __str__(self):
         return self.name
     
+class Address(models.Model):
+    
+    ADDRESS_TYPE_CHOICES = [
+        ('HO', 'Home'),
+        ('WO', 'Work'),
+        ('HQ', 'Headquarters'),
+        ('PR', 'Printers'),
+        ('BL', 'Billing'),
+        ('SH', 'Shipping'),
+        ('P1', 'Primary'),
+        ('P2', 'Secondary'),
+        ('P3', 'Alternative'),
+        ('P4', 'Backup'),
+        ('SU', 'Supplier'),
+        ('CU', 'Customer'),
+        ('VE', 'Vendor'),
+        ('CO', 'Correspondence'),
+        ('CR', 'Creditor'),
+        ('DE', 'Debtor'),
+        ('RE', 'Registered Office'),
+        ('LE', 'Legal Notices'),
+        ('OT', 'Other'),
+    ]
+    
+    address_type = models.CharField(max_length=2, choices=ADDRESS_TYPE_CHOICES, default='P1')
 
-@receiver(post_save, sender=User)
+    organisation = models.ForeignKey(
+        Organisation,
+        on_delete=models.CASCADE,
+        related_name='addresses'
+    )
+     
+    line1 = models.CharField(max_length=255, blank=True)
+    line2 = models.CharField(max_length=255, blank=True)
+    line3 = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=255, blank=True)
+    region = models.CharField(max_length=255, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=2, blank=True)
+    
+    def clean(self):
+        required_fields = ['line1', 'city', 'postal_code', 'country']  # Define required fields here
+        for field in required_fields:
+            if not getattr(self, field):
+                raise ValidationError(f"{field.replace('_', ' ').title()} is required")
+
+    def __str__(self):
+        parts = [self.line1, self.city, self.region, self.postal_code, self.country]
+        return ", ".join(filter(None, parts))
+    
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile_handler(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)

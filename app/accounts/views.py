@@ -14,12 +14,12 @@ from .forms import (
 from .models import (
     Organisation, 
     OrganisationInvite,
-    AddressConfiguration,
     Task,
     PublishingOutlet
 )
 from django.contrib.auth.decorators import login_required
 from .decorators import profile_required
+from django.contrib import messages
 
 def register(request):
     if request.method == "POST":
@@ -46,7 +46,8 @@ class CustomLoginView(LoginView):
 @login_required
 def complete_profile(request):
     if request.user.organisation:
-        return redirect("publications")
+        return redirect("manage_profile")
+    
     if request.method == "POST":
         if 'create_organisation' in request.POST:
             org_form = OrganisationForm(request.POST)
@@ -54,7 +55,7 @@ def complete_profile(request):
                 organisation = org_form.save()
                 request.user.organisation = organisation
                 request.user.save()
-                return redirect("publications")
+                return redirect("add_addresses")
         elif 'join_organisation' in request.POST:
             invite_form = OrganisationInviteForm(request.POST)
             if invite_form.is_valid():
@@ -62,15 +63,36 @@ def complete_profile(request):
                     invite = OrganisationInvite.objects.get(invite_code=invite_form.cleaned_data['invite_code'])
                     request.user.organisation = invite.organisation
                     request.user.save()
-                    return redirect("publications")
+                    return redirect("manage_profile")
                 except OrganisationInvite.DoesNotExist:
                     invite_form.add_error('invite_code', 'Invalid invite code')
     else:
         org_form = OrganisationForm()
         invite_form = OrganisationInviteForm()
+    
     return render(request, "accounts/complete_profile.html", {
         "org_form": org_form,
         "invite_form": invite_form,
+    })
+
+@login_required
+def add_addresses(request):
+    if not request.user.organisation:
+        messages.warning(request, "You need to create an organisation or join one before you can add an address.")
+        return redirect("complete_profile")
+    
+    if request.method == "POST":
+        form = AddressForm(request.POST)
+        if form.is_valid():
+            address = form.save(commit=False)
+            address.organisation = request.user.organisation
+            address.save()
+            return redirect("manage_profile")
+    else:
+        form = AddressForm()
+    
+    return render(request, "accounts/add_addresses.html", {
+        "form": form,
     })
     
 @login_required

@@ -26,7 +26,11 @@ SECRET_KEY = 'django-insecure-e43tg!^28-4#$joz0nre+c7k^u5(xghv_cbs-312#4_1^=4^cp
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '0.0.0.0',
+    '192.168.1.198'
+]
 
 
 # Application definition
@@ -130,3 +134,12 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Address Labels
+ADDRESS_LABEL_LINE1 = os.environ.get('ADDRESS_LABEL_LINE1', 'Address Line 1')
+ADDRESS_LABEL_LINE2 = os.environ.get('ADDRESS_LABEL_LINE2', 'Address Line 2')
+ADDRESS_LABEL_LINE3 = os.environ.get('ADDRESS_LABEL_LINE3', 'Address Line 3')
+ADDRESS_LABEL_CITY = os.environ.get('ADDRESS_LABEL_CITY', 'City')
+ADDRESS_LABEL_REGION = os.environ.get('ADDRESS_LABEL_REGION', 'Region/State')
+ADDRESS_LABEL_POSTAL_CODE = os.environ.get('ADDRESS_LABEL_POSTAL_CODE', 'Postal Code')
+ADDRESS_LABEL_COUNTRY = os.environ.get('ADDRESS_LABEL_COUNTRY', 'Country')

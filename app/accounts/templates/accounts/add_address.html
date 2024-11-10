@@ -1,0 +1,11 @@
+<!-- app/accounts/templates/accounts/add_addresses.html -->
+{% extends "base.html" %}
+{% block content %}
+<h2>Add Addresses</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Add Address</button>
+</form>
+<a href="{% url 'manage_profile' %}">Back to Profile</a>
+{% endblock %}
