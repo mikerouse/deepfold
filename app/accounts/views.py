@@ -49,24 +49,31 @@ def complete_profile(request):
         return redirect("manage_profile")
     
     if request.method == "POST":
+        # Initialize forms with POST data
+        org_form = OrganisationForm(request.POST) if 'create_organisation' in request.POST else OrganisationForm()
+        invite_form = OrganisationInviteForm(request.POST) if 'join_organisation' in request.POST else OrganisationInviteForm()
+        
         if 'create_organisation' in request.POST:
-            org_form = OrganisationForm(request.POST)
             if org_form.is_valid():
                 organisation = org_form.save()
                 request.user.organisation = organisation
                 request.user.save()
+                messages.success(request, "Organisation created successfully: " + organisation.name)
                 return redirect("add_addresses")
+        
         elif 'join_organisation' in request.POST:
-            invite_form = OrganisationInviteForm(request.POST)
             if invite_form.is_valid():
                 try:
                     invite = OrganisationInvite.objects.get(invite_code=invite_form.cleaned_data['invite_code'])
                     request.user.organisation = invite.organisation
                     request.user.save()
+                    messages.success(request, "Organisation joined: " + invite.organisation.name)
                     return redirect("manage_profile")
                 except OrganisationInvite.DoesNotExist:
                     invite_form.add_error('invite_code', 'Invalid invite code')
     else:
+        # Initialize empty forms for GET request
+        messages.warning(request, "You need to create an organisation or join one before you can move on.")
         org_form = OrganisationForm()
         invite_form = OrganisationInviteForm()
     
@@ -74,7 +81,7 @@ def complete_profile(request):
         "org_form": org_form,
         "invite_form": invite_form,
     })
-
+    
 @login_required
 def add_addresses(request):
     if not request.user.organisation:

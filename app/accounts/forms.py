@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.conf import settings
 from .models import (
     User, 
     PublishingOutlet, 
@@ -38,39 +39,36 @@ class OrganisationForm(forms.ModelForm):
     class Meta:
         model = Organisation
         fields = ['name', 'admin_email']
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         if self.instance.pk:
             # Existing organisation: bind address_form with instance and data
-            
             try:
                 physical_address = self.instance.physical_address
             except Address.DoesNotExist:
                 physical_address = None
-                
+            
             self.address_form = AddressForm(
                 self.data if self.is_bound else None,
                 instance=physical_address,
-                prefix='address',
-                configuration=physical_address.configuration if physical_address else None
+                prefix='address'
             )
         else:
-            # New organisation: use default AddressConfiguration
-            default_config = AddressConfiguration.objects.filter(is_default=True).first()
-            if not default_config:
-                default_config = AddressConfiguration.objects.first()
+            # New organisation: no AddressConfiguration is used
             self.address_form = AddressForm(
                 self.data if self.is_bound else None,
-                prefix='address',
-                configuration=default_config
+                prefix='address'
             )
-            
+    
     def is_valid(self):
         return super().is_valid() and self.address_form.is_valid()
-
+    
     def save(self, commit=True):
+        if not self.address_form.is_valid():
+            raise forms.ValidationError("Address form is not valid")
+        
         organisation = super().save(commit=False)
         if commit:
             address = self.address_form.save(commit=False)
