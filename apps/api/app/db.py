@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from sqlalchemy import create_engine
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import settings
@@ -11,6 +14,9 @@ class Base(DeclarativeBase):
 connect_args = {}
 if settings.database_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
+    database = make_url(settings.database_url).database
+    if database and database != ":memory:":
+        Path(database).parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_engine(settings.database_url, connect_args=connect_args, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)

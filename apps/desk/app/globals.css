@@ -27,6 +27,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+  overflow: hidden;
   background: var(--paper);
   color: var(--ink);
   font-family: "Public Sans", "Segoe UI", system-ui, sans-serif;
@@ -50,7 +51,9 @@ input {
 }
 
 .desk {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   grid-template-columns: var(--queue-w) 1fr var(--rail-w);
@@ -419,7 +422,13 @@ input {
 }
 
 @media (max-width: 1080px) {
+  html,
+  body {
+    overflow: auto;
+  }
   .desk {
+    height: auto;
+    min-height: 100vh;
     grid-template-columns: 1fr;
     grid-template-areas:
       "mast"
