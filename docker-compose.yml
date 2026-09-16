@@ -1,36 +1,60 @@
 services:
   db:
-    image: mariadb:latest
+    image: postgres:16-alpine
     environment:
-      MYSQL_DATABASE: deepfold_db
-      MYSQL_USER: deepfold_user
-      MYSQL_PASSWORD: mtr66b4A
-      MYSQL_ROOT_PASSWORD: root_password
-    volumes:
-      - mariadb_data:/var/lib/mysql
+      POSTGRES_USER: deepfold
+      POSTGRES_PASSWORD: deepfold
+      POSTGRES_DB: deepfold
     ports:
-      - "3306:3306"
-    networks:
-      - deepfold_network
-
-  app:
-    build:
-      context: .
-      dockerfile: app/Dockerfile
-    command: python manage.py runserver 0.0.0.0:8000
+      - "5432:5432"
     volumes:
-      - ./app:/app
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deepfold -d deepfold"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://deepfold:deepfold@db:5432/deepfold
+      REDIS_URL: redis://redis:6379/0
+      APPROVE_AND_PUBLISH_ENABLED: "false"
+      KILL_SWITCH: "false"
+      WP_LIVE: "false"
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      DEFAULT_ACTOR: journalist@conservativepost.local
     depends_on:
-      - db
-    env_file:
-      - .env
-    networks:
-      - deepfold_network
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  desk:
+    build:
+      context: ./apps/desk
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
 
 volumes:
-  mariadb_data:
-
-networks:
-  deepfold_network:
+  postgres_data:

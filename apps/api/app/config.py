@@ -1,0 +1,22 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    database_url: str = "sqlite+pysqlite:///./deepfold.db"
+    redis_url: str = "redis://localhost:6379/0"
+    approve_and_publish_enabled: bool = False
+    kill_switch: bool = False
+    wp_live: bool = False
+    wp_username: str = ""
+    wp_application_password: str = ""
+    default_actor: str = "journalist@conservativepost.local"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+settings = Settings()

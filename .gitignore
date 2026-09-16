@@ -2,9 +2,6 @@
 __pycache__/
 */__pycache__/
 *.py[cod]
-*/*.py[cod]
-*.pyc
-*/*.pyc
 *$py.class
 *.so
 .Python
@@ -14,8 +11,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -23,29 +20,31 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
-*.manifest
-*.spec
+.venv/
+venv/
+ENV/
 
-# Django
+# Node / Next.js
+node_modules/
+.next/
+out/
+apps/desk/.next/
+apps/desk/out/
+
+# Django leftovers (legacy tree — do not resurrect)
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media/
-static/
 staticfiles/
-*.pot
-*.mo
-*.pyc
 
 # Databases
 *.db
 *.rdb
 *.sqlite3
 *.psql
-*.postgresql
-*.mysql
+apps/api/deepfold.db
 
 # IDE/Editor
 .idea/
@@ -53,52 +52,24 @@ staticfiles/
 *.swp
 *.swo
 *~
-.vs/
-*.sublime-workspace
-*.sublime-project
-.project
-.pydevproject
-.settings/
-*.tmproj
-*.esproj
-*.sublime-workspace
 .history/
 
 # Environment
 .env
-.venv/
-env/
-venv/
-ENV/
-.python-version
 .env.local
 .env.*.local
-pip-log.txt
-pip-delete-this-directory.txt
+.python-version
 
 # OS
 .DS_Store
 Thumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-*.lnk
-._*
-.Spotlight-V100
-.Trashes
 
 # Coverage/Testing
 .coverage
 htmlcov/
-.tox/
-.nox/
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
 .pytest_cache/
+.tox/
+coverage.xml
 
-# Documentation
-docs/_build/
-/site
+# Docker
+postgres_data/
