@@ -20,4 +20,4 @@ The old `app/accounts` Django project (organisations, addresses, profile tasks, 
 
 **Cloud agents / Grok Bot.** Same repo, same branch model. Prefer Docker Compose when the environment has Docker. If Docker is missing, use the SQLite fallback documented in the README (`DATABASE_URL=sqlite+pysqlite:///./apps/api/deepfold.db`) so the API still boots and the desk can review seeded drafts. Do not invent a third product surface.
 
-**Both.** Schema lives in `apps/api/app/models.py` and Alembic. Persist every journalist decision through `POST /drafts/{id}/decisions`. Never auto-publish `single_source`, `caution`, or `defamation_sensitive` copy. Honour `KILL_SWITCH` and `APPROVE_AND_PUBLISH_ENABLED` (off by default).
+**Both.** Schema lives in `apps/api/app/models.py` and Alembic. Persist every journalist decision through `POST /drafts/{id}/decisions`. Pipeline stages are Pitch → Drafting → Checking → Publication → Social. Pitch items are abstracts; **Go** commissions a draft. Never auto-publish `single_source`, `caution`, or `defamation_sensitive` copy. Honour `KILL_SWITCH` and `APPROVE_AND_PUBLISH_ENABLED` (off by default).

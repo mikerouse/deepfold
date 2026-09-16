@@ -72,6 +72,8 @@ export type DraftListItem = {
   standfirst: string;
   slug: string;
   status: string;
+  pipeline_stage: string | null;
+  parked: boolean;
   verification_status: string;
   categories: string[];
   tags: string[];
@@ -79,6 +81,7 @@ export type DraftListItem = {
   auto_draft_eligible: boolean;
   auto_publish_eligible: boolean;
   suggested_outlet_names: string[];
+  image_label: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -97,6 +100,7 @@ export type DraftDetail = DraftListItem & {
     approve_and_publish_enabled: boolean;
     wp_live: boolean;
   };
+  is_pitch: boolean;
 };
 
 export type DeskSettings = {
@@ -105,6 +109,18 @@ export type DeskSettings = {
   wp_live: boolean;
   default_actor: string;
   product: string;
+};
+
+export type PipelineStage = {
+  id: string;
+  label: string;
+  hint: string;
+  count: number;
+  empty: string;
+};
+
+export type Pipeline = {
+  stages: PipelineStage[];
 };
 
 export type DecisionPayload = {

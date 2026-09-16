@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Deepfold Approvals Desk",
-  description: "Human-in-the-loop newsroom control panel for Conservative Post and UK local titles.",
+  title: "Deepfold · Editorial pipeline",
+  description: "Human-in-the-loop newsroom pipeline for Conservative Post and UK local titles. Pitch first; draft only after Go.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

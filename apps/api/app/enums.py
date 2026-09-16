@@ -1,13 +1,27 @@
 import enum
 
 
+class PipelineStage(str, enum.Enum):
+    pitch = "pitch"
+    drafting = "drafting"
+    checking = "checking"
+    publication = "publication"
+    social = "social"
+
+
 class DraftStatus(str, enum.Enum):
-    awaiting_review = "awaiting_review"
+    pitch = "pitch"
+    drafting = "drafting"
+    checking = "checking"
     changes_requested = "changes_requested"
     held = "held"
     approved_cms_draft = "approved_cms_draft"
+    social = "social"
     published = "published"
+    no_go = "no_go"
     rejected = "rejected"
+    # Legacy name kept so old rows/docs still parse until migrated.
+    awaiting_review = "awaiting_review"
 
 
 class VerificationStatus(str, enum.Enum):
@@ -18,6 +32,13 @@ class VerificationStatus(str, enum.Enum):
 
 
 class DecisionAction(str, enum.Enum):
+    go = "go"
+    no_go = "no_go"
+    leave = "leave"
+    unleave = "unleave"
+    return_to_pitch = "return_to_pitch"
+    send_to_checking = "send_to_checking"
+    advance_to_social = "advance_to_social"
     approve_as_is = "approve_as_is"
     tweak = "tweak"
     approve_create_cms_drafts = "approve_create_cms_drafts"

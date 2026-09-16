@@ -83,6 +83,8 @@ class DraftListItem(BaseModel):
     standfirst: str
     slug: str
     status: str
+    pipeline_stage: str | None
+    parked: bool = False
     verification_status: str
     categories: list[Any]
     tags: list[Any]
@@ -90,6 +92,7 @@ class DraftListItem(BaseModel):
     auto_draft_eligible: bool
     auto_publish_eligible: bool
     suggested_outlet_names: list[str]
+    image_label: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -114,6 +117,7 @@ class DraftDetail(DraftListItem):
     decisions: list[DecisionOut]
     confidence: ConfidenceOut
     flags: dict[str, Any]
+    is_pitch: bool = False
 
 
 class DecisionCreate(BaseModel):
@@ -127,6 +131,18 @@ class DecisionCreate(BaseModel):
     local_grafs: dict[str, str] | None = None
     social_post_id: uuid.UUID | None = None
     social_copy: str | None = None
+
+
+class StageCount(BaseModel):
+    id: str
+    label: str
+    hint: str
+    count: int
+    empty: str
+
+
+class PipelineOut(BaseModel):
+    stages: list[StageCount]
 
 
 class SettingsOut(BaseModel):

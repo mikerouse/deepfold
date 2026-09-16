@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import engine, get_db
-from app.models import AuditEvent
-from app.schemas import AuditEventOut, HealthOut, SettingsOut
+from app.models import AuditEvent, Draft
+from app.schemas import AuditEventOut, HealthOut, PipelineOut, SettingsOut, StageCount
+from app.services.pipeline import STAGE_ORDER, stage_for_status, stage_payload
 
 router = APIRouter(tags=["meta"])
 
@@ -29,6 +30,16 @@ def get_settings():
         wp_live=settings.wp_live,
         default_actor=settings.default_actor,
     )
+
+
+@router.get("/pipeline", response_model=PipelineOut)
+def get_pipeline(db: Session = Depends(get_db)):
+    counts = {stage: 0 for stage in STAGE_ORDER}
+    for status, in db.query(Draft.status).all():
+        stage = stage_for_status(status)
+        if stage in counts:
+            counts[stage] += 1
+    return PipelineOut(stages=[StageCount(**row) for row in stage_payload(counts)])
 
 
 @router.get("/audit", response_model=list[AuditEventOut])

@@ -1,6 +1,7 @@
 CARE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 BURGLARY_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 LEGAL_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+ROADS_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
 
 
 def test_health(client):
@@ -22,11 +23,26 @@ def test_list_drafts(client):
     }
 
 
-def test_get_draft(client):
+def test_get_pitch_hides_spine(client):
     response = client.get(f"/drafts/{CARE_ID}")
     assert response.status_code == 200
     body = response.json()
-    assert "social care" in body["headline"].lower() or "£40m" in body["headline"]
+    assert body["pipeline_stage"] == "pitch"
+    assert body["is_pitch"] is True
+    assert body["spine_body"] == ""
+    assert body["media"] == []
+    assert body["social_posts"] == []
+    assert body["source_links"]
+    assert body["suggested_outlet_names"]
+
+
+def test_get_checking_draft_has_spine(client):
+    response = client.get(f"/drafts/{ROADS_ID}")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["pipeline_stage"] == "checking"
+    assert "Hinckley" in body["headline"] or "A5" in body["headline"]
+    assert body["spine_body"]
     assert body["media"]
     assert body["social_posts"]
     assert body["targets"]
@@ -34,41 +50,46 @@ def test_get_draft(client):
 
 
 def test_reject_requires_reason(client):
-    response = client.post(f"/drafts/{CARE_ID}/decisions", json={"action": "reject"})
+    response = client.post(f"/drafts/{ROADS_ID}/decisions", json={"action": "reject"})
     assert response.status_code == 400
 
 
 def test_hold_and_audit(client):
-    response = client.post(f"/drafts/{CARE_ID}/decisions", json={"action": "hold", "reason": "waiting on county papers"})
+    response = client.post(f"/drafts/{ROADS_ID}/decisions", json={"action": "hold", "reason": "waiting on county papers"})
     assert response.status_code == 200
     assert response.json()["status"] == "held"
+    assert response.json()["pipeline_stage"] == "checking"
     audit = client.get("/audit").json()
     assert any(event["event_type"] == "hold" for event in audit)
 
 
 def test_approve_publish_blocked_by_flag(client):
-    response = client.post(f"/drafts/{CARE_ID}/decisions", json={"action": "approve_publish"})
+    response = client.post(f"/drafts/{ROADS_ID}/decisions", json={"action": "approve_publish"})
     assert response.status_code == 403
 
 
 def test_approve_cms_drafts_dry_run(client):
-    draft = client.get(f"/drafts/{CARE_ID}").json()
+    draft = client.get(f"/drafts/{ROADS_ID}").json()
     outlet_ids = [t["outlet"]["id"] for t in draft["targets"] if t["selected"]]
     response = client.post(
-        f"/drafts/{CARE_ID}/decisions",
+        f"/drafts/{ROADS_ID}/decisions",
         json={"action": "approve_create_cms_drafts", "selected_outlet_ids": outlet_ids},
     )
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "approved_cms_draft"
+    assert body["pipeline_stage"] == "publication"
     assert body["decisions"][0]["action"] == "approve_create_cms_drafts"
     assert body["decisions"][0]["diff"]["cms"]
 
 
 def test_single_source_can_still_be_held_by_human(client):
+    moved = client.post(f"/drafts/{BURGLARY_ID}/decisions", json={"action": "send_to_checking"})
+    assert moved.status_code == 200
     response = client.post(f"/drafts/{BURGLARY_ID}/decisions", json={"action": "hold"})
     assert response.status_code == 200
     assert response.json()["verification_status"] == "single_source"
+    assert response.json()["pipeline_stage"] == "checking"
 
 
 def test_request_changes_persists_reason(client):
@@ -79,3 +100,4 @@ def test_request_changes_persists_reason(client):
     assert response.status_code == 200
     assert response.json()["status"] == "changes_requested"
     assert "monitoring officer" in response.json()["decisions"][0]["reason"]
+    assert response.json()["pipeline_stage"] == "checking"
