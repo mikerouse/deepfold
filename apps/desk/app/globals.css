@@ -55,10 +55,11 @@ input {
   height: 100dvh;
   overflow: hidden;
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto auto 1fr auto;
   grid-template-columns: var(--queue-w) 1fr var(--rail-w);
   grid-template-areas:
     "mast mast mast"
+    "stages stages stages"
     "flags flags flags"
     "queue well rail"
     "queue actions actions";
@@ -93,6 +94,13 @@ input {
   letter-spacing: 0.02em;
 }
 
+.mast-line {
+  margin: 4px 0 0;
+  font-size: 13px;
+  opacity: 0.78;
+  letter-spacing: 0.02em;
+}
+
 .mast-meta {
   display: flex;
   gap: 28px;
@@ -115,6 +123,7 @@ input {
 .flags {
   grid-area: flags;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 8px 16px;
   background: var(--navy);
@@ -132,6 +141,62 @@ input {
 .flags .hot {
   background: var(--reject);
   border-color: transparent;
+}
+
+.stages {
+  grid-area: stages;
+  display: flex;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.stage {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 0 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  padding: 10px 16px 12px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.stage:last-child {
+  border-right: 0;
+}
+
+.stage.active {
+  background: var(--paper);
+  box-shadow: inset 0 -3px 0 var(--mast);
+}
+
+.stage-label {
+  grid-column: 1;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.stage-count {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--mast);
+}
+
+.stage-hint {
+  grid-column: 1;
+  font-size: 12px;
+  color: var(--ink);
 }
 
 .queue {
@@ -152,8 +217,27 @@ input {
   color: var(--ink-soft);
 }
 
+.queue .empty,
+.empty-well {
+  padding: 14px 16px 24px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.empty-well h2 {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 28px;
+  color: var(--ink);
+  margin: 0 0 8px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .q-item {
-  display: block;
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 10px;
   width: 100%;
   text-align: left;
   background: transparent;
@@ -162,6 +246,27 @@ input {
   padding: 12px 14px 14px;
   cursor: pointer;
   color: inherit;
+}
+
+.q-thumb {
+  width: 52px;
+  height: 52px;
+  background: var(--navy);
+  color: #f4ead8;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  padding: 6px;
+  overflow: hidden;
+  font-family: "Newsreader", Georgia, serif;
+}
+
+.q-thumb.pitch {
+  background: var(--mast);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  display: flex;
+  align-items: flex-end;
 }
 
 .q-item.active {
@@ -203,11 +308,76 @@ input {
 .pill.single_source { color: var(--caution); border-color: var(--caution); }
 .pill.caution { color: var(--caution); border-color: var(--caution); background: #f3e0c6; }
 .pill.defamation_sensitive { color: var(--legal); border-color: var(--legal); background: #efe3f3; }
-.pill.awaiting_review { color: var(--navy); }
+.pill.awaiting_review,
+.pill.checking,
+.pill.pitch { color: var(--navy); }
+.pill.drafting { color: var(--hold); }
 .pill.held { color: var(--hold); }
-.pill.rejected { color: var(--reject); }
-.pill.approved_cms_draft { color: var(--approve); }
+.pill.left { color: var(--ink-soft); }
+.pill.rejected,
+.pill.no_go { color: var(--reject); }
+.pill.approved_cms_draft,
+.pill.publication { color: var(--approve); }
 .pill.changes_requested { color: var(--caution); }
+
+.chip {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #dfd0b6;
+  color: var(--ink);
+}
+
+.headline-display {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 600;
+  margin: 0;
+}
+
+.abstract-display {
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 10px 0 14px;
+}
+
+.pitch-note {
+  margin: 18px 0 8px;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.quiet-banner {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: #e4efe6;
+  border: 1px solid var(--approve);
+  color: var(--approve);
+  font-size: 13px;
+}
+
+.section-label {
+  margin: 18px 0 8px;
+  padding: 0;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.action-hint {
+  align-self: center;
+  font-size: 12px;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
 
 .well {
   grid-area: well;
@@ -432,6 +602,7 @@ input {
     grid-template-columns: 1fr;
     grid-template-areas:
       "mast"
+      "stages"
       "flags"
       "queue"
       "well"

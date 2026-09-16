@@ -8,6 +8,7 @@ from app.db import SessionLocal, init_db
 from app.enums import MediaRole, SocialPlatform, SocialStatus, VerificationStatus
 from app.models import Draft, MediaAsset, Outlet, PublishTarget, SocialPost
 from app.services.audit import write_audit
+from app.services.pipeline import SEED_STAGE_BY_SLUG
 from app.services.present import apply_confidence
 
 OUTLET_SPECS = [
@@ -115,11 +116,24 @@ def seed_if_empty() -> None:
     db = SessionLocal()
     try:
         if db.query(Outlet).count() > 0:
+            _migrate_legacy_pipeline(db)
+            db.commit()
             return
         _seed(db)
         db.commit()
     finally:
         db.close()
+
+
+def _migrate_legacy_pipeline(db: Session) -> None:
+    """Remap v0 awaiting_review rows onto the editorial pipeline once."""
+    for draft in db.query(Draft).all():
+        if draft.status != "awaiting_review":
+            continue
+        intended = SEED_STAGE_BY_SLUG.get(draft.slug, "checking")
+        draft.status = intended
+        if not hasattr(draft, "parked") or draft.parked is None:
+            draft.parked = False
 
 
 def _seed(db: Session) -> None:
@@ -152,6 +166,7 @@ def _seed(db: Session) -> None:
                 },
             ],
             "spine_body": _body_care(),
+            "status": "pitch",
             "outlets": {
                 "conservative-post": "Nationally this is another Midlands shire being asked to absorb a care market Whitehall still prices as if every town had London’s tax base.",
                 "nuneaton-desk": "In Nuneaton, members will be asked what a county-wide savings line means for the Borough’s own leisure and homelessness budgets — the Town Hall cannot wait for Shire Hall’s March meeting.",
@@ -191,6 +206,7 @@ def _seed(db: Session) -> None:
                 }
             ],
             "spine_body": _body_burglary(),
+            "status": "drafting",
             "outlets": {
                 "nuneaton-desk": "Camp Hill will read this as a street-level story: which end of the estate, which van, and whether the “third this month” claim survives a check against recorded crime.",
                 "conservative-post": "Carry only if the desk is satisfied the public-appeal element is new; do not inflate a single force statement into a crimewave.",
@@ -233,6 +249,7 @@ def _seed(db: Session) -> None:
                 },
             ],
             "spine_body": _body_lobbying(),
+            "status": "checking",
             "outlets": {
                 "conservative-post": "National frame is standards in public life, not a named smear. If we cannot evidence the alleged remarks, we do not print them.",
                 "warwickshire-times": "County readers need the application named only if the planning reference is already public; do not identify a private individual beyond their public office without the lawyer.",
@@ -275,6 +292,7 @@ def _seed(db: Session) -> None:
                 },
             ],
             "spine_body": _body_roads(),
+            "status": "checking",
             "outlets": {
                 "hinckley-desk": "Name the junction residents will actually sit in and the residential rat-runs the county has already asked drivers to avoid.",
                 "conservative-post": "A short Midlands transport brief is enough nationally — dates, hours, and that daytime traffic still runs.",
@@ -311,6 +329,8 @@ def _seed(db: Session) -> None:
             tags=spec["tags"],
             source_links=spec["source_links"],
             spine_body=spec["spine_body"],
+            status=spec["status"],
+            parked=False,
         )
         db.add(draft)
         db.flush()

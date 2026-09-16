@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.config import settings
+from app.enums import PipelineStage
 from app.models import Draft
 from app.schemas import (
     ConfidenceOut,
@@ -12,6 +13,7 @@ from app.schemas import (
     SocialPostOut,
 )
 from app.services.confidence import score_draft
+from app.services.pipeline import stage_for_status
 
 
 def suggested_outlet_names(draft: Draft) -> list[str]:
@@ -22,13 +24,26 @@ def suggested_outlet_names(draft: Draft) -> list[str]:
     return names
 
 
+def featured_image_label(draft: Draft) -> str | None:
+    featured = next((m for m in (draft.media or []) if m.role == "featured"), None)
+    if featured:
+        return featured.placeholder_label
+    if draft.media:
+        return draft.media[0].placeholder_label
+    return None
+
+
 def to_list_item(draft: Draft) -> DraftListItem:
+    stage = stage_for_status(draft.status)
+    is_pitch = stage == PipelineStage.pitch.value
     return DraftListItem(
         id=draft.id,
         headline=draft.headline,
         standfirst=draft.standfirst,
         slug=draft.slug,
         status=draft.status,
+        pipeline_stage=stage,
+        parked=bool(draft.parked),
         verification_status=draft.verification_status,
         categories=draft.categories or [],
         tags=draft.tags or [],
@@ -36,6 +51,7 @@ def to_list_item(draft: Draft) -> DraftListItem:
         auto_draft_eligible=draft.auto_draft_eligible,
         auto_publish_eligible=draft.auto_publish_eligible,
         suggested_outlet_names=suggested_outlet_names(draft),
+        image_label=None if is_pitch else featured_image_label(draft),
         created_at=draft.created_at,
         updated_at=draft.updated_at,
     )
@@ -57,13 +73,14 @@ def apply_confidence(draft: Draft) -> dict:
 def to_detail(draft: Draft) -> DraftDetail:
     confidence = apply_confidence(draft)
     item = to_list_item(draft)
+    is_pitch = item.pipeline_stage == PipelineStage.pitch.value
     return DraftDetail(
         **item.model_dump(),
         byline=draft.byline,
         source_links=draft.source_links or [],
-        spine_body=draft.spine_body,
-        media=[MediaAssetOut.model_validate(m) for m in draft.media],
-        social_posts=[SocialPostOut.model_validate(s) for s in draft.social_posts],
+        spine_body="" if is_pitch else draft.spine_body,
+        media=[] if is_pitch else [MediaAssetOut.model_validate(m) for m in draft.media],
+        social_posts=[] if is_pitch else [SocialPostOut.model_validate(s) for s in draft.social_posts],
         targets=[PublishTargetOut.model_validate(t) for t in draft.targets],
         decisions=[DecisionOut.model_validate(d) for d in sorted(draft.decisions, key=lambda x: x.created_at, reverse=True)],
         confidence=ConfidenceOut(**confidence),
@@ -72,4 +89,5 @@ def to_detail(draft: Draft) -> DraftDetail:
             "approve_and_publish_enabled": settings.approve_and_publish_enabled,
             "wp_live": settings.wp_live,
         },
+        is_pitch=is_pitch,
     )

@@ -1,4 +1,4 @@
-import type { DecisionPayload, DeskSettings, DraftDetail, DraftListItem } from "./types";
+import type { DecisionPayload, DeskSettings, DraftDetail, DraftListItem, Pipeline } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -28,8 +28,13 @@ export function apiBase() {
   return API_BASE;
 }
 
-export function listDrafts() {
-  return request<DraftListItem[]>("/drafts");
+export function listDrafts(stage?: string) {
+  const query = stage ? `?stage=${encodeURIComponent(stage)}` : "";
+  return request<DraftListItem[]>(`/drafts${query}`);
+}
+
+export function getPipeline() {
+  return request<Pipeline>("/pipeline");
 }
 
 export function getDraft(id: string) {

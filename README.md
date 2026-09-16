@@ -12,8 +12,8 @@ Journalist (apps/desk, Next.js)
         ▼
 FastAPI (apps/api)  ── confidence stub
         │
-        ├── Postgres  Draft, DraftVersion, Outlet, PublishTarget,
-        │             Decision, MediaAsset, SocialPost, AuditEvent
+        ├── Postgres  Draft (+ pipeline status, parked), DraftVersion, Outlet,
+        │             PublishTarget, Decision, MediaAsset, SocialPost, AuditEvent
         ├── Redis     reserved for queues / locks (optional in v0)
         └── WordPress REST adapter (Application Password, draft-only by default)
 ```
@@ -81,27 +81,32 @@ Same git remote, same layout, same rules.
 - **Cloud agents / Grok Bot** — treat this README and `AGENTS.md` as standing instructions. Prefer Compose when Docker exists; otherwise the SQLite fallback is the documented equivalent so the seeded desk still runs. Persist journalist actions only through `POST /drafts/{id}/decisions`. Never auto-publish `single_source`, `caution`, or `defamation_sensitive` copy. Honour `KILL_SWITCH`.
 - **Both** — feature work is branches + PRs. The live contract is FastAPI’s OpenAPI at `/openapi.json`.
 
+## Editorial pipeline
+
+The desk is a **newsroom pipeline**, not a flat mixed queue. Abstract comes first; a journalist presses **Go** before anyone writes the article.
+
+| Stage | What you see | What you do |
+| --- | --- | --- |
+| **Pitch** | Headline, abstract, sources, suggested outlets. Not a draft. | **Go** commissions a draft. **No-go** kills it (confirm + reason). **Leave** parks it on the spike. |
+| **Drafting** | Article, image plate, tags, outlet grafs. | Produce the piece, then **Send to checking**. **Back to pitch** undoes Go. |
+| **Checking** | Journalist review. | **Approve CMS draft** / **Request changes** (reason) / **Reject** (reason) / **Hold**. |
+| **Publication** | WordPress draft-only targets (dry-run unless `WP_LIVE`). | File CMS drafts; **Send to social**. |
+| **Social** | X / Facebook stubs. | Approve / edit / hold. Connectors are not wired yet. |
+
+A persistent **stage strip with counts** filters the spike. Leave is not No-go. Approve & publish stays **off** by default. `single_source`, `caution`, and `defamation_sensitive` copy can never auto-publish.
+
+Seeded demo: the Midlands councils story sits in **Pitch** until Go. A burglary appeal is in **Drafting**. Checking holds the A5 Hinckley notice (calm, verified) and the cabinet-member diary gap (defamation-sensitive). Publication and Social start empty.
+
 ## Journalist screen (v0)
 
-The desk opens on a seeded spike:
+The desk opens on **Pitch**. Seeded copy:
 
-1. Midlands social-care savings (verified, multi-outlet)
-2. Nuneaton burglary appeal (**single-source** — human only)
-3. Cabinet member / housebuilder diary gap (**defamation-sensitive**)
-4. A5 Hinckley night closures (routine, higher confidence)
+1. Midlands social-care savings — **Pitch** until Go (verified, multi-outlet)
+2. Nuneaton burglary appeal — **Drafting** (**single-source** — human only)
+3. Cabinet member / housebuilder diary gap — **Checking** (**defamation-sensitive**)
+4. A5 Hinckley night closures — **Checking** (routine, higher confidence)
 
-Each story shows body, featured editorial still + caption/alt, categories/tags, verification, source links, suggested outlets (multi-select), local grafs, and X / Facebook packs with approve / edit / hold. Social **connectors are not wired**; the data model and UI stubs are in place.
-
-Actions:
-
-| Action | Behaviour |
-| --- | --- |
-| Approve & create CMS drafts | Localise per selected outlet, call WP adapter with `status=draft` (dry-run unless `WP_LIVE=true`) |
-| Approve & publish | **Feature-flagged off** (`APPROVE_AND_PUBLISH_ENABLED=false`) |
-| Request changes | Reason required |
-| Reject | Reason required |
-| Hold | Parks the draft |
-| Save tweak / outlet override / social edit | Stored as decisions + diffs for the learning loop |
+Checking still localises per outlet and files WordPress **drafts** (dry-run unless `WP_LIVE=true`). Social **connectors are not wired**; stubs appear at the Social stage. Approve & publish remains feature-flagged **off**.
 
 ## Learning loop and confidence
 
@@ -152,7 +157,8 @@ Pointer for every agent and journalist:
 
 - `GET /health`
 - `GET /settings`
-- `GET /drafts`
+- `GET /pipeline`
+- `GET /drafts` (`?stage=pitch|drafting|checking|publication|social`)
 - `GET /drafts/{id}`
 - `POST /drafts/{id}/decisions`
 - `GET /outlets`

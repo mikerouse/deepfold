@@ -11,7 +11,7 @@ from app.db import get_db
 from app.enums import (
     HARD_BLOCK_VERIFICATIONS,
     DecisionAction,
-    DraftStatus,
+    PipelineStage,
     PublishTargetStatus,
     SocialStatus,
 )
@@ -19,12 +19,24 @@ from app.models import Decision, Draft, DraftVersion, PublishTarget, SocialPost
 from app.schemas import DecisionCreate, DraftDetail, DraftListItem
 from app.services.audit import write_audit
 from app.services.localisation import compose_variant, fallback_local_graf
+from app.services.pipeline import (
+    ARCHIVED_STATUSES,
+    action_allowed,
+    commissioned_spine,
+    next_status,
+    stage_for_status,
+    statuses_for_stage,
+)
 from app.services.present import apply_confidence, to_detail, to_list_item
 from app.services.wordpress import WordPressAdapter
 
 router = APIRouter(prefix="/drafts", tags=["drafts"])
 
-REASON_REQUIRED = {DecisionAction.request_changes.value, DecisionAction.reject.value}
+REASON_REQUIRED = {
+    DecisionAction.request_changes.value,
+    DecisionAction.reject.value,
+    DecisionAction.no_go.value,
+}
 
 
 def _load_draft(db: Session, draft_id: uuid.UUID) -> Draft:
@@ -73,17 +85,10 @@ def _snapshot(draft: Draft) -> dict[str, Any]:
 
 
 def _next_status(action: str, current: str) -> str:
-    mapping = {
-        DecisionAction.approve_create_cms_drafts.value: DraftStatus.approved_cms_draft.value,
-        DecisionAction.approve_publish.value: DraftStatus.published.value,
-        DecisionAction.request_changes.value: DraftStatus.changes_requested.value,
-        DecisionAction.reject.value: DraftStatus.rejected.value,
-        DecisionAction.hold.value: DraftStatus.held.value,
-    }
-    return mapping.get(action, current)
+    return next_status(action, current)
 
 
-def _apply_copy_edits(draft: Draft, body: DecisionCreate) -> dict[str, Any]:
+def _apply_copy_edits(draft: Draft, body: DecisionCreate, *, allow_spine: bool) -> dict[str, Any]:
     diff: dict[str, Any] = {}
     if body.headline is not None and body.headline != draft.headline:
         diff["headline"] = {"from": draft.headline, "to": body.headline}
@@ -91,9 +96,11 @@ def _apply_copy_edits(draft: Draft, body: DecisionCreate) -> dict[str, Any]:
     if body.standfirst is not None and body.standfirst != draft.standfirst:
         diff["standfirst"] = {"from": draft.standfirst, "to": body.standfirst}
         draft.standfirst = body.standfirst
-    if body.spine_body is not None and body.spine_body != draft.spine_body:
-        diff["spine_body"] = {"from": draft.spine_body, "to": body.spine_body}
-        draft.spine_body = body.spine_body
+    if allow_spine and body.spine_body is not None and body.spine_body != draft.spine_body:
+        # Never wipe a commissioned spine with the empty pitch payload.
+        if body.spine_body.strip() or not draft.spine_body.strip():
+            diff["spine_body"] = {"from": draft.spine_body, "to": body.spine_body}
+            draft.spine_body = body.spine_body
     return diff
 
 
@@ -157,10 +164,20 @@ def _push_to_cms(draft: Draft, *, publish: bool, actor: str) -> list[dict[str, A
 
 
 @router.get("", response_model=list[DraftListItem])
-def list_drafts(status: str | None = None, db: Session = Depends(get_db)):
-    query = db.query(Draft).options(selectinload(Draft.targets).selectinload(PublishTarget.outlet))
-    if status:
+def list_drafts(status: str | None = None, stage: str | None = None, db: Session = Depends(get_db)):
+    query = db.query(Draft).options(
+        selectinload(Draft.targets).selectinload(PublishTarget.outlet),
+        selectinload(Draft.media),
+    )
+    if stage:
+        statuses = statuses_for_stage(stage)
+        if not statuses:
+            raise HTTPException(status_code=400, detail=f"Unknown pipeline stage: {stage}")
+        query = query.filter(Draft.status.in_(statuses))
+    elif status:
         query = query.filter(Draft.status == status)
+    else:
+        query = query.filter(Draft.status.notin_(ARCHIVED_STATUSES))
     drafts = query.order_by(Draft.created_at.desc()).all()
     return [to_list_item(d) for d in drafts]
 
@@ -181,15 +198,25 @@ def record_decision(draft_id: uuid.UUID, body: DecisionCreate, db: Session = Dep
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown action: {body.action}") from exc
 
+    stage = stage_for_status(draft.status)
+    if not action_allowed(stage, action.value):
+        label = stage or draft.status
+        raise HTTPException(
+            status_code=400,
+            detail=f"{action.value.replace('_', ' ')} is not available on {label}.",
+        )
+
     if action.value in REASON_REQUIRED and not (body.reason and body.reason.strip()):
         raise HTTPException(status_code=400, detail="A reason is required for this action.")
 
     actor = body.actor or settings.default_actor
     previous = draft.status
+    previous_parked = bool(draft.parked)
     diff: dict[str, Any] = {}
     cms_results: list[dict[str, Any]] = []
 
-    copy_diff = _apply_copy_edits(draft, body)
+    allow_spine = stage != PipelineStage.pitch.value
+    copy_diff = _apply_copy_edits(draft, body, allow_spine=allow_spine)
     outlet_diff = _apply_outlet_selection(draft, body)
     diff.update(copy_diff)
     diff.update(outlet_diff)
@@ -203,6 +230,30 @@ def record_decision(draft_id: uuid.UUID, body: DecisionCreate, db: Session = Dep
         if not outlet_diff:
             diff["outlet_override"] = "selection confirmed"
         effective_action = DecisionAction.outlet_override
+
+    if action == DecisionAction.go:
+        draft.parked = False
+        if not (draft.spine_body or "").strip():
+            draft.spine_body = commissioned_spine(draft.headline, draft.standfirst)
+            diff["commissioned"] = True
+        else:
+            diff["commissioned"] = "existing spine revealed"
+
+    if action == DecisionAction.leave:
+        draft.parked = True
+        diff["parked"] = {"from": previous_parked, "to": True}
+
+    if action == DecisionAction.unleave:
+        draft.parked = False
+        diff["parked"] = {"from": previous_parked, "to": False}
+
+    if action == DecisionAction.no_go:
+        draft.parked = False
+        diff["archived"] = True
+
+    if action == DecisionAction.return_to_pitch:
+        draft.parked = False
+        diff["returned_to_pitch"] = True
 
     if action in {DecisionAction.social_edit, DecisionAction.social_approve, DecisionAction.social_hold}:
         if not body.social_post_id:
