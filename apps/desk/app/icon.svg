@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deepfold">
-  <rect width="64" height="64" fill="#6b1422"/>
-  <text x="32" y="44" text-anchor="middle" font-size="36" font-family="Georgia, serif" fill="#f4ead8">D</text>
+  <rect width="64" height="64" fill="#f7f5f1"/>
+  <path d="M8 12h48v1.5H8zm0 38.5h48V52H8z" fill="#161513"/>
+  <text x="32" y="42" text-anchor="middle" font-size="28" font-family="Georgia, serif" fill="#161513">D</text>
 </svg>

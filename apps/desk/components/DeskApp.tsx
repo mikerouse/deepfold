@@ -25,21 +25,33 @@ const STAGE_AFTER_ACTION: Record<string, string> = {
   request_changes: "checking",
 };
 
-function pill(value: string, extra = "") {
-  return <span className={`pill ${value} ${extra}`.trim()}>{value.replaceAll("_", " ")}</span>;
+function mark(value: string, extra = "") {
+  return <span className={`mark ${extra}`.trim()}>{value.replaceAll("_", " ")}</span>;
 }
 
 function socialCopy(post: SocialPost) {
   return post.edited_body || post.body;
 }
 
-function statusLabel(item: DraftListItem) {
-  if (item.parked) return "Left";
-  if (item.status === "changes_requested") return "Changes";
-  if (item.status === "held") return "Held";
-  if (item.status === "approved_cms_draft") return "CMS draft";
-  if (item.pipeline_stage) return item.pipeline_stage;
-  return item.status;
+function actorLabel(settings: DeskSettings | null) {
+  const raw = settings?.default_actor || "journalist";
+  return raw.includes("@") ? raw.split("@")[0] : raw;
+}
+
+function rowMarkers(item: DraftListItem, stage: string) {
+  const marks: { text: string; tone?: string }[] = [];
+  if (item.parked) marks.push({ text: "Left", tone: "left" });
+  if (item.status === "changes_requested") marks.push({ text: "Changes", tone: "changes_requested" });
+  if (item.status === "held") marks.push({ text: "Held", tone: "held" });
+  if (stage !== "pitch" && item.verification_status !== "verified") {
+    marks.push({
+      text: item.verification_status.replaceAll("_", " "),
+      tone: item.verification_status,
+    });
+  }
+  const outlet = item.suggested_outlet_names[0];
+  if (outlet && marks.length < 3) marks.push({ text: outlet });
+  return marks.slice(0, 3);
 }
 
 export default function DeskApp({ initialId }: { initialId?: string }) {
@@ -58,9 +70,11 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
   const [socialEdits, setSocialEdits] = useState<Record<string, string>>({});
   const [reasonMode, setReasonMode] = useState<ReasonMode>(null);
   const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const currentStage = stages.find((s) => s.id === stage);
+  const showRail = Boolean(draft) && stage !== "pitch";
 
   async function refresh(nextStage = stage, selectId?: string) {
     const [rows, pipe] = await Promise.all([listDrafts(nextStage), getPipeline()]);
@@ -111,6 +125,7 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
   const showsOutlets = stage === "drafting" || stage === "checking" || stage === "publication";
   const showsSocial = stage === "social";
   const showsImage = stage === "drafting" || stage === "checking";
+  const selectedOutlets = draft?.targets.filter((t) => t.selected) || [];
 
   async function run(action: string, extra?: Record<string, unknown>) {
     if (!draft) return;
@@ -128,8 +143,8 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
       if (showsBody) payload.spine_body = spine;
       const next = await recordDecision(draft.id, payload as Parameters<typeof recordDecision>[1]);
       const followStage = STAGE_AFTER_ACTION[action] || next.pipeline_stage || stage;
-      if (action === "go") setNotice("Commissioned. The article, image plate, tags and outlets are now in Drafting.");
-      if (action === "leave") setNotice("Left on the spike. This is not a No-go — unpark whenever you want it back.");
+      if (action === "go") setNotice("Commissioned. The article is now in Drafting.");
+      if (action === "leave") setNotice("Left on the spike. This is not a No-go — unpark when you want it back.");
       if (action === "unleave") setNotice("Back on the spike.");
       if (action === "no_go") setNotice("No-go. The pitch is archived with your reason.");
       await refresh(followStage, action === "no_go" ? undefined : next.id);
@@ -140,14 +155,22 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
     }
   }
 
+  function openReason(mode: NonNullable<ReasonMode>) {
+    setReason("");
+    setReasonError(null);
+    setError(null);
+    setReasonMode(mode);
+  }
+
   function submitReason() {
     if (!reasonMode) return;
     if (!reason.trim()) {
-      setError("A reason is required.");
+      setReasonError("A reason is required.");
       return;
     }
     const action = reasonMode;
     setReasonMode(null);
+    setReasonError(null);
     const text = reason;
     setReason("");
     void run(action, { reason: text });
@@ -156,46 +179,59 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
   const reasonCopy = {
     no_go: {
       title: "No-go this pitch?",
-      body: "No-go kills the idea and archives it with your reason. Leave parks it on the spike instead — that is not a kill.",
+      body: "No-go kills the idea and archives it with your reason. Leave on Pitch parks it on the spike instead — that is not a kill.",
       confirm: "No-go",
     },
     reject: {
       title: "Reject this draft",
-      body: "A reason is required and is stored on the decision + audit log.",
+      body: "A reason is required and is stored on the decision and audit log.",
       confirm: "Reject",
     },
     request_changes: {
       title: "Request changes",
-      body: "A reason is required and is stored on the decision + audit log.",
+      body: "A reason is required and is stored on the decision and audit log.",
       confirm: "Request changes",
     },
   } as const;
 
+  const storyKicker = draft?.categories[0];
+  const sensitive =
+    draft && draft.verification_status !== "verified" && stage !== "pitch"
+      ? draft.verification_status.replaceAll("_", " ")
+      : null;
+
   return (
-    <div className={`desk stage-${stage}`}>
+    <div className={`desk stage-${stage}${showRail ? " has-rail" : ""}`}>
       <header className="mast">
         <div className="mast-brand">
-          <div className="kicker">Conservative Post · UK local news</div>
-          <h1>Deepfold Approvals Desk</h1>
-          <p className="mast-line">Editorial pipeline — pitch first, draft only after Go.</p>
+          <p className="kicker">Conservative Post</p>
+          <h1>Deepfold</h1>
         </div>
-        <div className="mast-meta">
+        <dl className="mast-meta">
           <div>
-            Actor
-            <strong>{settings?.default_actor || "journalist"}</strong>
+            <dt>Desk</dt>
+            <dd>{actorLabel(settings)}</dd>
           </div>
           <div>
-            Publish
-            <strong>{settings?.approve_and_publish_enabled ? "ON" : "off"}</strong>
+            <dt>Publish</dt>
+            <dd>{settings?.approve_and_publish_enabled ? "On" : "Off"}</dd>
           </div>
-        </div>
+          {settings?.kill_switch ? (
+            <div className="hot">
+              <dt>Kill switch</dt>
+              <dd>On</dd>
+            </div>
+          ) : null}
+        </dl>
       </header>
 
       <nav className="stages" aria-label="Pipeline stages">
         {stages.map((item) => (
           <button
             key={item.id}
+            type="button"
             className={`stage ${stage === item.id ? "active" : ""}`}
+            aria-current={stage === item.id ? "page" : undefined}
             onClick={() => {
               setError(null);
               setNotice(null);
@@ -203,55 +239,40 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
             }}
           >
             <span className="stage-label">{item.label}</span>
-            <span className="stage-count">{item.count}</span>
-            <span className="stage-hint">{item.hint}</span>
+            <span className={`stage-count${item.count === 0 ? " zero" : ""}`}>{item.count}</span>
           </button>
         ))}
       </nav>
 
-      <div className="flags">
-        <span className={settings?.kill_switch ? "hot" : ""}>
-          Kill switch {settings?.kill_switch ? "ON" : "off"}
-        </span>
-        <span>Approve &amp; publish {settings?.approve_and_publish_enabled ? "ON" : "OFF (default)"}</span>
-        <span>WP {settings?.wp_live ? "live" : "draft-only / dry-run"}</span>
-        <span>Never auto-publish single-source, caution, or defamation-sensitive</span>
-      </div>
+      {error ? <div className="alert" role="alert">{error}</div> : null}
 
-      {error ? <div className="error" style={{ gridColumn: "1 / -1" }}>{error}</div> : null}
-
-      <aside className="queue">
-        <h2>{currentStage?.label || "Spike"}</h2>
+      <aside className="queue" aria-label="Stories in this stage">
         {queue.length === 0 ? (
           <p className="empty">{currentStage?.empty || "Nothing in this stage."}</p>
         ) : null}
         {queue.map((item) => (
           <button
             key={item.id}
+            type="button"
             className={`q-item ${draft?.id === item.id ? "active" : ""}`}
             onClick={() => {
               setNotice(null);
               void openDraft(item.id);
             }}
           >
-            {item.image_label ? (
-              <div className="q-thumb" title={item.image_label}>
-                {item.image_label}
-              </div>
-            ) : (
-              <div className="q-thumb pitch">{item.parked ? "Left" : "Pitch"}</div>
-            )}
-            <div>
-              <div className="town">{item.suggested_outlet_names[0] || item.categories[0]}</div>
-              <h3>{item.headline}</h3>
-              <div className="q-meta">
-                {pill(statusLabel(item), item.parked ? "left" : item.status)}
-                {stage !== "pitch" ? pill(item.verification_status) : null}
-                {item.suggested_outlet_names.slice(0, 3).map((name) => (
-                  <span className="chip" key={name}>{name}</span>
-                ))}
-              </div>
-            </div>
+            <h3>{item.headline}</h3>
+            <p className="q-abstract">{item.standfirst}</p>
+            <p className="q-meta">
+              {rowMarkers(item, stage).map((row) =>
+                row.tone ? (
+                  <span className={`mark ${row.tone}`} key={row.text}>
+                    {row.text}
+                  </span>
+                ) : (
+                  <span key={row.text}>{row.text}</span>
+                ),
+              )}
+            </p>
           </button>
         ))}
       </aside>
@@ -263,11 +284,18 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
             <p>{currentStage?.empty || "Select a story."}</p>
           </div>
         ) : (
-          <>
-            <div className="byline">
-              {stage === "pitch" ? "Pitch · abstract only" : draft.byline} · {draft.slug}
-              {draft.parked ? " · Left on the spike" : ""}
-            </div>
+          <div className="well-inner">
+            {storyKicker || sensitive ? (
+              <p className="kicker-story">
+                {storyKicker}
+                {sensitive ? (
+                  <>
+                    {storyKicker ? " · " : null}
+                    <span className="sensitive">{sensitive}</span>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
             {stage === "pitch" ? (
               <>
                 <h2 className="headline-display">{headline}</h2>
@@ -279,28 +307,12 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
                 <textarea className="standfirst-input" value={standfirst} onChange={(e) => setStandfirst(e.target.value)} rows={2} />
               </>
             )}
-            <div className="q-meta">
-              {draft.categories.map((c) => (
-                <span className="pill" key={c}>{c}</span>
-              ))}
-              {stage !== "pitch"
-                ? draft.tags.map((t) => (
-                    <span className="pill" key={t}>{t}</span>
-                  ))
-                : draft.suggested_outlet_names.map((name) => (
-                    <span className="chip" key={name}>{name}</span>
-                  ))}
-            </div>
-            {notice ? <div className="banner quiet-banner">{notice}</div> : null}
+            {draft.parked ? <p className="byline">Left on the spike</p> : null}
+            {notice ? <p className="quiet-banner">{notice}</p> : null}
             {showsBody ? (
-              <textarea className="body-input" value={spine} onChange={(e) => setSpine(e.target.value)} />
-            ) : (
-              <p className="pitch-note">
-                This is not a draft. Go commissions the article, image plate, tags and outlets. Leave parks it.
-                No-go kills it, with a reason.
-              </p>
-            )}
-            <h2 className="section-label">{stage === "pitch" ? "Sources" : "Source links"}</h2>
+              <textarea className="body-input" value={spine} onChange={(e) => setSpine(e.target.value)} rows={16} />
+            ) : null}
+            <h2 className="section-label">Sources</h2>
             <ul className="sources">
               {draft.source_links.map((s) => (
                 <li key={s.url}>
@@ -312,163 +324,141 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
             {stage === "pitch" ? (
               <>
                 <h2 className="section-label">Suggested outlets</h2>
-                <div className="q-meta">
-                  {draft.targets.filter((t) => t.selected).map((t) => (
-                    <span className="chip" key={t.id}>{t.outlet.name}</span>
-                  ))}
-                </div>
+                <p className="outlet-line">{selectedOutlets.map((t) => t.outlet.name).join(", ") || "None selected"}</p>
               </>
             ) : null}
-          </>
+          </div>
         )}
       </main>
 
-      <aside className="rail">
-        {draft && stage === "pitch" ? (
-          <div className="panel">
-            <h2>Pitch</h2>
-            <p className="notes">
-              Headline, abstract, sources and suggested outlets only. Nothing is written yet — that starts after
-              Go.
-            </p>
-            <p className="notes">
-              <strong>Go</strong> commissions a draft. <strong>Leave</strong> parks this idea. <strong>No-go</strong>{" "}
-              archives it.
-            </p>
-          </div>
-        ) : null}
-        {draft && stage !== "pitch" ? (
-          <>
-            <div className="panel">
-              <h2>Verification</h2>
-              {pill(draft.verification_status)}
+      {showRail ? (
+        <aside className="rail">
+          <section>
+            <h2>Verification</h2>
+            {mark(draft!.verification_status, draft!.verification_status)}
+            <p className="notes">Single-source, caution and defamation-sensitive copy can never auto-publish.</p>
+          </section>
+          {stage === "checking" || stage === "drafting" ? (
+            <section>
+              <h2>Confidence</h2>
+              <div className="meter" aria-hidden="true">
+                <span style={{ width: `${Math.round(draft!.confidence.score * 100)}%` }} />
+              </div>
               <p className="notes">
-                Single-source, caution and defamation-sensitive copy can never auto-publish.
+                {Math.round(draft!.confidence.score * 100)} · auto-draft{" "}
+                {draft!.confidence.auto_draft_eligible ? "yes" : "no"} · auto-publish{" "}
+                {draft!.confidence.auto_publish_eligible ? "yes" : "no"}
               </p>
-            </div>
-            {stage === "checking" || stage === "drafting" ? (
-              <div className="panel">
-                <h2>Confidence</h2>
-                <div className="meter">
-                  <span style={{ width: `${Math.round(draft.confidence.score * 100)}%` }} />
-                </div>
-                <div className="notes">
-                  {Math.round(draft.confidence.score * 100)} · auto-draft{" "}
-                  {draft.confidence.auto_draft_eligible ? "yes" : "no"} · auto-publish{" "}
-                  {draft.confidence.auto_publish_eligible ? "yes" : "no"}
-                </div>
-              </div>
-            ) : null}
-            {showsImage ? (
-              <div className="panel">
-                <h2>Featured image</h2>
-                {draft.media.map((m) => (
-                  <figure key={m.id}>
-                    <div className="plate" title={m.alt_text}>{m.placeholder_label}</div>
-                    <figcaption className="caption">
-                      {m.caption} · {m.credit}
-                      {m.documentary_incident ? " · DOCUMENTARY (must be real)" : " · not a fake incident photo"}
-                    </figcaption>
-                  </figure>
-                ))}
-              </div>
-            ) : null}
-            {showsOutlets ? (
-              <div className="panel">
-                <h2>{stage === "publication" ? "CMS targets" : "Target outlets"}</h2>
-                {draft.targets.map((t) => (
-                  <label className="outlet" key={t.id}>
-                    <header>
-                      <input
-                        type="checkbox"
-                        checked={!!selected[t.outlet.id]}
-                        onChange={(e) => setSelected((prev) => ({ ...prev, [t.outlet.id]: e.target.checked }))}
-                      />
-                      <strong>{t.outlet.name}</strong>
-                      <span className="pill">{t.outlet.town}</span>
-                    </header>
-                    {stage === "publication" ? (
-                      <div className="notes">
-                        CMS {t.cms_status}
-                        {t.remote_post_id ? ` · ${t.remote_post_id}` : ""}
-                        {t.last_error ? ` · ${t.last_error}` : ""}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="brief">{t.outlet.localisation_brief}</div>
-                        <textarea
-                          className="graf-input"
-                          rows={4}
-                          value={grafs[t.outlet.id] || ""}
-                          onChange={(e) => setGrafs((prev) => ({ ...prev, [t.outlet.id]: e.target.value }))}
-                        />
-                      </>
-                    )}
-                  </label>
-                ))}
-                {stage === "drafting" || stage === "checking" ? (
-                  <button className="btn quiet" disabled={busy} onClick={() => run("outlet_override")}>
-                    Save outlet override
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            {showsSocial ? (
-              <div className="panel">
-                <h2>Social stubs</h2>
-                {draft.social_posts.map((s) => (
-                  <div className="social" key={s.id}>
-                    <div className="q-meta">
-                      {pill(s.platform === "x" ? "x" : "facebook")}
-                      {pill(s.status)}
-                    </div>
-                    <textarea
-                      className="social-input"
-                      rows={4}
-                      value={socialEdits[s.id] || ""}
-                      onChange={(e) => setSocialEdits((prev) => ({ ...prev, [s.id]: e.target.value }))}
+            </section>
+          ) : null}
+          {showsImage ? (
+            <section>
+              <h2>Featured image</h2>
+              {draft!.media.map((m) => (
+                <figure key={m.id}>
+                  <div className="plate" title={m.alt_text}>{m.placeholder_label}</div>
+                  <figcaption className="caption">
+                    {m.caption} · {m.credit}
+                    {m.documentary_incident ? " · Documentary (must be real)" : ""}
+                  </figcaption>
+                </figure>
+              ))}
+            </section>
+          ) : null}
+          {showsOutlets ? (
+            <section>
+              <h2>{stage === "publication" ? "CMS targets" : "Target outlets"}</h2>
+              {draft!.targets.map((t) => (
+                <label className="outlet" key={t.id}>
+                  <header>
+                    <input
+                      type="checkbox"
+                      checked={!!selected[t.outlet.id]}
+                      onChange={(e) => setSelected((prev) => ({ ...prev, [t.outlet.id]: e.target.checked }))}
                     />
-                    <div className="row">
-                      <button className="btn" disabled={busy} onClick={() => run("social_approve", { social_post_id: s.id, social_copy: socialEdits[s.id] })}>Approve</button>
-                      <button className="btn" disabled={busy} onClick={() => run("social_edit", { social_post_id: s.id, social_copy: socialEdits[s.id] })}>Edit</button>
-                      <button className="btn" disabled={busy} onClick={() => run("social_hold", { social_post_id: s.id })}>Hold</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            {stage === "checking" || stage === "drafting" ? (
-              <div className="panel">
-                <h2>Decisions</h2>
-                {draft.decisions.length === 0 ? <p className="notes">None yet — the learning loop starts here.</p> : null}
-                {draft.decisions.slice(0, 6).map((d) => (
-                  <p className="notes" key={d.id}>
-                    {d.action.replaceAll("_", " ")} · {d.actor}
-                    {d.reason ? ` · ${d.reason}` : ""}
+                    <strong>{t.outlet.name}</strong>
+                  </header>
+                  {stage === "publication" ? (
+                    <p className="notes">
+                      CMS {t.cms_status}
+                      {t.remote_post_id ? ` · ${t.remote_post_id}` : ""}
+                      {t.last_error ? ` · ${t.last_error}` : ""}
+                    </p>
+                  ) : (
+                    <>
+                      <div className="brief">{t.outlet.localisation_brief}</div>
+                      <textarea
+                        className="graf-input"
+                        rows={4}
+                        value={grafs[t.outlet.id] || ""}
+                        onChange={(e) => setGrafs((prev) => ({ ...prev, [t.outlet.id]: e.target.value }))}
+                      />
+                    </>
+                  )}
+                </label>
+              ))}
+              {stage === "drafting" || stage === "checking" ? (
+                <button type="button" className="btn quiet" disabled={busy} onClick={() => run("outlet_override")}>
+                  Save outlet override
+                </button>
+              ) : null}
+            </section>
+          ) : null}
+          {showsSocial ? (
+            <section>
+              <h2>Social stubs</h2>
+              {draft!.social_posts.map((s) => (
+                <div className="social" key={s.id}>
+                  <p className="q-meta">
+                    {mark(s.platform === "x" ? "x" : "facebook")}
+                    {mark(s.status)}
                   </p>
-                ))}
-              </div>
-            ) : null}
-          </>
-        ) : null}
-      </aside>
+                  <textarea
+                    className="social-input"
+                    rows={4}
+                    value={socialEdits[s.id] || ""}
+                    onChange={(e) => setSocialEdits((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                  />
+                  <div className="row">
+                    <button type="button" className="btn" disabled={busy} onClick={() => run("social_approve", { social_post_id: s.id, social_copy: socialEdits[s.id] })}>Approve</button>
+                    <button type="button" className="btn" disabled={busy} onClick={() => run("social_edit", { social_post_id: s.id, social_copy: socialEdits[s.id] })}>Edit</button>
+                    <button type="button" className="btn quiet" disabled={busy} onClick={() => run("social_hold", { social_post_id: s.id })}>Hold</button>
+                  </div>
+                </div>
+              ))}
+            </section>
+          ) : null}
+          {stage === "checking" || stage === "drafting" ? (
+            <section>
+              <h2>Decisions</h2>
+              {draft!.decisions.length === 0 ? <p className="notes">None yet.</p> : null}
+              {draft!.decisions.slice(0, 6).map((d) => (
+                <p className="notes" key={d.id}>
+                  {d.action.replaceAll("_", " ")} · {d.actor}
+                  {d.reason ? ` · ${d.reason}` : ""}
+                </p>
+              ))}
+            </section>
+          ) : null}
+        </aside>
+      ) : null}
 
-      <footer className="actions">
+      <footer className="actions" aria-label="Stage actions">
         {stage === "pitch" && draft ? (
           <>
-            <button className="btn primary" disabled={busy} onClick={() => run("go")}>
+            <button type="button" className="btn primary" disabled={busy} onClick={() => run("go")}>
               Go
             </button>
             {draft.parked ? (
-              <button className="btn" disabled={busy} onClick={() => run("unleave")}>
+              <button type="button" className="btn" disabled={busy} onClick={() => run("unleave")}>
                 Unpark
               </button>
             ) : (
-              <button className="btn quiet" disabled={busy} onClick={() => run("leave")}>
-                Leave
+              <button type="button" className="btn quiet" disabled={busy} onClick={() => run("leave")}>
+                Leave on Pitch
               </button>
             )}
-            <button className="btn danger" disabled={busy} onClick={() => setReasonMode("no_go")}>
+            <button type="button" className="btn danger" disabled={busy} onClick={() => openReason("no_go")}>
               No-go
             </button>
             <span className="action-hint">Go commissions a draft. Leave parks. No-go kills, with a reason.</span>
@@ -476,36 +466,36 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
         ) : null}
         {stage === "drafting" && draft ? (
           <>
-            <button className="btn primary" disabled={busy} onClick={() => run("send_to_checking")}>
+            <button type="button" className="btn primary" disabled={busy} onClick={() => run("send_to_checking")}>
               Send to checking
             </button>
-            <button className="btn quiet" disabled={busy} onClick={() => run("return_to_pitch")}>
+            <button type="button" className="btn quiet" disabled={busy} onClick={() => run("return_to_pitch")}>
               Back to pitch
             </button>
-            <button className="btn quiet" disabled={busy} onClick={() => run("tweak")}>
+            <button type="button" className="btn quiet" disabled={busy} onClick={() => run("tweak")}>
               Save tweak
             </button>
           </>
         ) : null}
         {stage === "checking" && draft ? (
           <>
-            <button className="btn primary" disabled={busy} onClick={() => run("approve_create_cms_drafts")}>
+            <button type="button" className="btn primary" disabled={busy} onClick={() => run("approve_create_cms_drafts")}>
               Approve CMS draft
             </button>
-            <button className="btn" disabled={busy} onClick={() => setReasonMode("request_changes")}>
+            <button type="button" className="btn" disabled={busy} onClick={() => openReason("request_changes")}>
               Request changes
             </button>
-            <button className="btn danger" disabled={busy} onClick={() => setReasonMode("reject")}>
+            <button type="button" className="btn danger" disabled={busy} onClick={() => openReason("reject")}>
               Reject
             </button>
-            <button className="btn" disabled={busy} onClick={() => run("hold")}>
+            <button type="button" className="btn quiet" disabled={busy} onClick={() => run("hold")}>
               Hold
             </button>
           </>
         ) : null}
         {stage === "publication" && draft ? (
           <>
-            <button className="btn primary" disabled={busy} onClick={() => run("advance_to_social")}>
+            <button type="button" className="btn primary" disabled={busy} onClick={() => run("advance_to_social")}>
               Send to social
             </button>
             <span className="action-hint">WordPress stays draft-only unless Approve &amp; publish is flagged on.</span>
@@ -518,16 +508,46 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
       </footer>
 
       {reasonMode ? (
-        <div className="modal-back" onClick={() => setReasonMode(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{reasonCopy[reasonMode].title}</h3>
+        <div
+          className="modal-back"
+          onClick={() => {
+            setReasonMode(null);
+            setReasonError(null);
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="reason-title">
+            <h3 id="reason-title">{reasonCopy[reasonMode].title}</h3>
             <p className="notes">{reasonCopy[reasonMode].body}</p>
-            <textarea className="reason-input" rows={5} value={reason} onChange={(e) => setReason(e.target.value)} />
-            <div className="row" style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button className={`btn ${reasonMode === "request_changes" ? "primary" : "danger"}`} onClick={submitReason}>
+            <textarea
+              className="reason-input"
+              rows={5}
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (reasonError) setReasonError(null);
+              }}
+              placeholder="Reason"
+              aria-label="Reason"
+            />
+            {reasonError ? <p className="notes modal-error">{reasonError}</p> : null}
+            <div className="row">
+              <button
+                type="button"
+                className={`btn confirm ${reasonMode === "request_changes" ? "primary" : "danger"}`}
+                onClick={submitReason}
+              >
                 {reasonCopy[reasonMode].confirm}
               </button>
-              <button className="btn quiet" onClick={() => setReasonMode(null)}>Cancel</button>
+              <button
+                type="button"
+                className="btn quiet"
+                onClick={() => {
+                  setReasonMode(null);
+                  setReasonError(null);
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
