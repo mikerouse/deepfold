@@ -42,9 +42,20 @@ function withOutlet(path: string, outletId?: string | null) {
   return `${path}${join}outlet_id=${encodeURIComponent(outletId)}`;
 }
 
-export function listDrafts(stage?: string, outletId?: string | null) {
-  const query = stage ? `?stage=${encodeURIComponent(stage)}` : "";
-  return request<DraftListItem[]>(withOutlet(`/drafts${query}`, outletId));
+export function listDrafts(opts?: {
+  stage?: string;
+  outletId?: string | null;
+  platform?: string;
+  packageId?: string;
+  county?: string;
+}) {
+  const query = new URLSearchParams();
+  if (opts?.stage) query.set("stage", opts.stage);
+  if (opts?.platform) query.set("platform", opts.platform);
+  if (opts?.packageId) query.set("package_id", opts.packageId);
+  if (opts?.county) query.set("county", opts.county);
+  const suffix = query.toString() ? `?${query}` : "";
+  return request<DraftListItem[]>(withOutlet(`/drafts${suffix}`, opts?.outletId));
 }
 
 export function getPipeline(outletId?: string | null) {

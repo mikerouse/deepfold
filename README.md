@@ -105,7 +105,9 @@ The publisher name is **Newsworld** (`PUBLISHER_NAME`). Conservative Post is one
 
 ## Journalist screen (v0)
 
-The desk opens on **Pitch**. Seeded copy:
+The desk opens on a **list-first Stories view**, grouped by pipeline stage. Click a row to drill into the story well.
+
+Seeded copy:
 
 1. Midlands social-care savings — **Pitch** until Go (verified, multi-title)
 2. Nuneaton burglary appeal — **Drafting** (**single-source** — human only)
@@ -120,12 +122,12 @@ The journalist UI is meant to read as newsroom furniture — a high-end British 
 
 - Off-white paper, near-black ink, one navy accent. Crimson only for No-go / reject / kill switch.
 - Masthead is the **publisher** (Newsworld), not a single title. Quiet **All titles** / focus-title control.
-- Stage strip is labelled text + counts with an underline for the active stage, not badge tabs.
-- Spike rows: headline, one-line abstract, at most two or three quiet markers.
-- Story well is a ~65-character column. Drafting shows the article, plate and tags; Pitch stays abstract-only.
+- Stage strip is a quiet **filters bar** (stage, web/social, county, package) with counts, not badge tabs.
+- Stories list is grouped by stage: headline, one-line abstract, stacked `Web | {title}` / `Social | X` chips (selected + “+N”), a stub reader-need column, and a quiet stage/verification mark.
+- Click a row to drill into the story well (~65-character column). Pitch stays abstract-only; Drafting shows the article, plate and tags.
 - Titles: chips, geography suggestions, packages, typeahead. Never a thousand-row checklist.
 - One primary action per stage; secondary actions stay as text.
-- Pitch hides the right-hand rail. No-go is a sparse confirm with a required reason.
+- Pitch well is abstract-only; titles sit in a slim rail. No-go is a sparse confirm with a required reason.
 
 ## Learning loop and confidence
 
@@ -177,7 +179,7 @@ Pointer for every agent and journalist:
 - `GET /health`
 - `GET /settings` (`publisher_name`)
 - `GET /pipeline` (`?outlet_id=`)
-- `GET /drafts` (`?stage=&outlet_id=`)
+- `GET /drafts` (`?stage=&outlet_id=&platform=web|social&package_id=&county=`)
 - `GET /drafts/{id}`
 - `POST /drafts/{id}/decisions`
 - `GET /outlets` (`?q=&county=&region=&limit=`)

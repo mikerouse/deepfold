@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.config import settings
-from app.enums import PipelineStage
+from app.enums import PipelineStage, SocialPlatform
 from app.models import Draft
 from app.schemas import (
     ConfidenceOut,
@@ -10,12 +10,28 @@ from app.schemas import (
     DraftListItem,
     JobOut,
     MediaAssetOut,
+    PlatformChip,
     PublishTargetOut,
     SocialPostOut,
 )
 from app.services.confidence import score_draft
 from app.services.jobs import draft_is_ready
 from app.services.pipeline import stage_for_status
+
+# Planning list stub — four intents, never the visual centre.
+USER_NEED_INTENTS = ("Update me", "Inform me", "Hold me to account", "Amuse me")
+CATEGORY_TO_NEED = {
+    "local government": "Update me",
+    "social care": "Update me",
+    "crime": "Inform me",
+    "transport": "Inform me",
+    "planning": "Hold me to account",
+    "accountability": "Hold me to account",
+}
+SOCIAL_LABELS = {
+    SocialPlatform.x.value: "X",
+    SocialPlatform.facebook.value: "Facebook",
+}
 
 
 def suggested_outlet_names(draft: Draft) -> list[str]:
@@ -24,6 +40,38 @@ def suggested_outlet_names(draft: Draft) -> list[str]:
         if target.selected and target.outlet:
             names.append(target.outlet.name)
     return names
+
+
+def selected_outlet_ids(draft: Draft) -> list:
+    return [target.outlet_id for target in draft.targets if target.selected]
+
+
+def user_need_for(draft: Draft) -> str | None:
+    for category in draft.categories or []:
+        if not isinstance(category, str):
+            continue
+        mapped = CATEGORY_TO_NEED.get(category.strip().lower())
+        if mapped in USER_NEED_INTENTS:
+            return mapped
+    return None
+
+
+def platform_chips(draft: Draft) -> list[PlatformChip]:
+    chips: list[PlatformChip] = []
+    for target in draft.targets:
+        if target.selected and target.outlet:
+            chips.append(
+                PlatformChip(kind="web", label=target.outlet.name, outlet_id=target.outlet.id)
+            )
+    for post in draft.social_posts or []:
+        chips.append(
+            PlatformChip(
+                kind="social",
+                label=SOCIAL_LABELS.get(post.platform, (post.platform or "").replace("_", " ").title()),
+                platform=post.platform,
+            )
+        )
+    return chips
 
 
 def featured_image_label(draft: Draft) -> str | None:
@@ -53,6 +101,9 @@ def to_list_item(draft: Draft) -> DraftListItem:
         auto_draft_eligible=draft.auto_draft_eligible,
         auto_publish_eligible=draft.auto_publish_eligible,
         suggested_outlet_names=suggested_outlet_names(draft),
+        platforms=platform_chips(draft),
+        user_need=user_need_for(draft),
+        selected_outlet_ids=selected_outlet_ids(draft),
         image_label=None if is_pitch else featured_image_label(draft),
         draft_ready=False if is_pitch else draft_is_ready(draft),
         created_at=draft.created_at,

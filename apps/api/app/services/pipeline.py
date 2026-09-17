@@ -56,6 +56,7 @@ ACTIONS_BY_STAGE: dict[str, set[str]] = {
         DecisionAction.no_go.value,
         DecisionAction.leave.value,
         DecisionAction.unleave.value,
+        DecisionAction.outlet_override.value,
     },
     PipelineStage.drafting.value: {
         DecisionAction.send_to_checking.value,

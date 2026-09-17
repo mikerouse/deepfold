@@ -110,6 +110,7 @@ export default function TitlePicker({
   }
 
   const publication = stage === "publication";
+  const planning = stage === "pitch";
 
   return (
     <section>
@@ -200,33 +201,35 @@ export default function TitlePicker({
         ) : null}
       </div>
 
-      {!publication
-        ? selectedOutlets.map((outlet) => (
-            <label className="outlet" key={outlet.id}>
-              <header>
-                <strong>{outlet.name}</strong>
-              </header>
-              <div className="brief">{outlet.localisation_brief}</div>
-              <textarea
-                className="graf-input"
-                rows={3}
-                value={grafs[outlet.id] || ""}
-                onChange={(e) => onGrafs({ ...grafs, [outlet.id]: e.target.value })}
-              />
-            </label>
-          ))
-        : selectedOutlets.map((outlet) => {
-            const t = targets.find((row) => row.outlet.id === outlet.id);
-            return (
-              <p className="notes" key={outlet.id}>
-                {outlet.name} · CMS {t?.cms_status || "pending"}
-                {t?.remote_post_id ? ` · ${t.remote_post_id}` : ""}
-                {t?.last_error ? ` · ${t.last_error}` : ""}
-              </p>
-            );
-          })}
+      {planning
+        ? null
+        : publication
+          ? selectedOutlets.map((outlet) => {
+              const t = targets.find((row) => row.outlet.id === outlet.id);
+              return (
+                <p className="notes" key={outlet.id}>
+                  {outlet.name} · CMS {t?.cms_status || "pending"}
+                  {t?.remote_post_id ? ` · ${t.remote_post_id}` : ""}
+                  {t?.last_error ? ` · ${t.last_error}` : ""}
+                </p>
+              );
+            })
+          : selectedOutlets.map((outlet) => (
+              <label className="outlet" key={outlet.id}>
+                <header>
+                  <strong>{outlet.name}</strong>
+                </header>
+                <div className="brief">{outlet.localisation_brief}</div>
+                <textarea
+                  className="graf-input"
+                  rows={3}
+                  value={grafs[outlet.id] || ""}
+                  onChange={(e) => onGrafs({ ...grafs, [outlet.id]: e.target.value })}
+                />
+              </label>
+            ))}
 
-      {stage === "drafting" || stage === "checking" ? (
+      {stage === "drafting" || stage === "checking" || planning ? (
         <button type="button" className="btn quiet" disabled={busy} onClick={onSave}>
           Save titles
         </button>

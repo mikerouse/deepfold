@@ -91,6 +91,13 @@ export type Confidence = {
   notes: string[];
 };
 
+export type PlatformChip = {
+  kind: "web" | "social" | string;
+  label: string;
+  outlet_id?: string | null;
+  platform?: string | null;
+};
+
 export type DraftListItem = {
   id: string;
   headline: string;
@@ -106,6 +113,9 @@ export type DraftListItem = {
   auto_draft_eligible: boolean;
   auto_publish_eligible: boolean;
   suggested_outlet_names: string[];
+  platforms: PlatformChip[];
+  user_need: string | null;
+  selected_outlet_ids: string[];
   image_label: string | null;
   draft_ready: boolean;
   created_at: string;
