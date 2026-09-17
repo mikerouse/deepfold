@@ -63,6 +63,10 @@ export default function TitlePicker({
     if (!open) return;
     const handle = setTimeout(() => {
       void (async () => {
+        if (!query.trim()) {
+          setHits([]);
+          return;
+        }
         const rows = await searchOutlets({ q: query, county: county || undefined, limit: 8 });
         setHits(rows.filter((row) => !selectedIds.has(row.id)));
       })();
@@ -159,6 +163,8 @@ export default function TitlePicker({
           <div className="title-pop" role="listbox">
             <input
               autoFocus
+              id="title-search"
+              name="title-search"
               className="title-q"
               value={query}
               placeholder="Search titles"
@@ -166,7 +172,14 @@ export default function TitlePicker({
               onChange={(e) => setQuery(e.target.value)}
             />
             {counties.length > 0 ? (
-              <select className="title-filter" value={county} onChange={(e) => setCounty(e.target.value)} aria-label="County">
+              <select
+                id="title-county"
+                name="title-county"
+                className="title-filter"
+                value={county}
+                onChange={(e) => setCounty(e.target.value)}
+                aria-label="County"
+              >
                 <option value="">All counties</option>
                 {counties.map((name) => (
                   <option key={name} value={name}>
@@ -175,7 +188,8 @@ export default function TitlePicker({
                 ))}
               </select>
             ) : null}
-            {hits.length === 0 ? <p className="notes">No titles match.</p> : null}
+            {hits.length === 0 && query.trim() ? <p className="notes">No titles match.</p> : null}
+            {!query.trim() ? <p className="notes">Type a town or title.</p> : null}
             {hits.map((outlet) => (
               <button key={outlet.id} type="button" className="suggest-line" onClick={() => addOutlet(outlet)}>
                 {outlet.name}

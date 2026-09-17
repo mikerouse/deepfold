@@ -213,7 +213,7 @@ input:focus-visible,
 
 .title-pop {
   position: absolute;
-  z-index: 6;
+  z-index: 12;
   left: 0;
   right: 0;
   top: calc(100% + 0.35rem);

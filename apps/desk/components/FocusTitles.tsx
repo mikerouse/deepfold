@@ -51,6 +51,8 @@ export default function FocusTitles({ focus, onChange }: Props) {
         <div className="title-pop focus-pop">
           <input
             autoFocus
+            id="focus-title-search"
+            name="focus-title-search"
             className="title-q"
             value={query}
             placeholder="Focus a title"

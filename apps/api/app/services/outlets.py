@@ -127,7 +127,7 @@ def suggest_for_draft(db: Session, draft: Draft, *, limit: int = 6) -> tuple[lis
         if score > 0:
             scored.append((score, outlet))
     scored.sort(key=lambda row: (-row[0], row[1].name))
-    suggested = [row[1] for row in scored[:limit]]
+    suggested = [row[1] for row in scored[: min(4, limit)]]
 
     packages = list_packages(db)
     matching_packages: list[PackageOut] = []
