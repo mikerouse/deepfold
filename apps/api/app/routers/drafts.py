@@ -15,7 +15,7 @@ from app.enums import (
     PublishTargetStatus,
     SocialStatus,
 )
-from app.models import Decision, Draft, DraftVersion, PublishTarget, SocialPost
+from app.models import Decision, Draft, DraftVersion, OutletPackageMember, PublishTarget
 from app.schemas import DecisionCreate, DraftDetail, DraftListItem
 from app.services.audit import write_audit
 from app.services.jobs import (
@@ -177,17 +177,35 @@ def _push_to_cms(draft: Draft, *, publish: bool, actor: str) -> list[dict[str, A
     return results
 
 
+def _matches_county(draft: Draft, county: str) -> bool:
+    needle = county.strip().lower()
+    if not needle:
+        return True
+    geo = draft.geography or {}
+    for item in geo.get("counties") or []:
+        if isinstance(item, str) and item.strip().lower() == needle:
+            return True
+    for target in draft.targets:
+        if target.selected and target.outlet and (target.outlet.county or "").strip().lower() == needle:
+            return True
+    return False
+
+
 @router.get("", response_model=list[DraftListItem])
 def list_drafts(
     status: str | None = None,
     stage: str | None = None,
     outlet_id: uuid.UUID | None = None,
+    platform: str | None = None,
+    package_id: uuid.UUID | None = None,
+    county: str | None = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(Draft).options(
         selectinload(Draft.targets).selectinload(PublishTarget.outlet),
         selectinload(Draft.media),
         selectinload(Draft.jobs),
+        selectinload(Draft.social_posts),
     )
     if stage:
         statuses = statuses_for_stage(stage)
@@ -202,7 +220,22 @@ def list_drafts(
         query = query.filter(
             Draft.targets.any((PublishTarget.outlet_id == outlet_id) & (PublishTarget.selected.is_(True)))
         )
+    if platform:
+        kind = platform.strip().lower()
+        if kind not in {"web", "social"}:
+            raise HTTPException(status_code=400, detail="platform must be web or social")
+        if kind == "web":
+            query = query.filter(Draft.targets.any(PublishTarget.selected.is_(True)))
+        else:
+            query = query.filter(Draft.social_posts.any())
+    if package_id:
+        member_ids = db.query(OutletPackageMember.outlet_id).filter(OutletPackageMember.package_id == package_id)
+        query = query.filter(
+            Draft.targets.any((PublishTarget.selected.is_(True)) & (PublishTarget.outlet_id.in_(member_ids)))
+        )
     drafts = query.order_by(Draft.created_at.desc()).all()
+    if county and county.strip():
+        drafts = [draft for draft in drafts if _matches_county(draft, county)]
     return [to_list_item(d) for d in drafts]
 
 

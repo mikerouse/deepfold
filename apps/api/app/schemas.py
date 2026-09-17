@@ -100,6 +100,13 @@ class DecisionOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PlatformChip(BaseModel):
+    kind: str
+    label: str
+    outlet_id: uuid.UUID | None = None
+    platform: str | None = None
+
+
 class DraftListItem(BaseModel):
     id: uuid.UUID
     headline: str
@@ -115,6 +122,9 @@ class DraftListItem(BaseModel):
     auto_draft_eligible: bool
     auto_publish_eligible: bool
     suggested_outlet_names: list[str]
+    platforms: list[PlatformChip] = Field(default_factory=list)
+    user_need: str | None = None
+    selected_outlet_ids: list[uuid.UUID] = Field(default_factory=list)
     image_label: str | None = None
     draft_ready: bool = True
     created_at: datetime
