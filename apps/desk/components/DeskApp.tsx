@@ -310,10 +310,8 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
             {draft.parked ? <p className="byline">Left on the spike</p> : null}
             {notice ? <p className="quiet-banner">{notice}</p> : null}
             {showsBody ? (
-              <textarea className="body-input" value={spine} onChange={(e) => setSpine(e.target.value)} />
-            ) : (
-              <p className="pitch-note">Abstract only. Go commissions the article; Leave on Pitch parks it; No-go kills it, with a reason.</p>
-            )}
+              <textarea className="body-input" value={spine} onChange={(e) => setSpine(e.target.value)} rows={16} />
+            ) : null}
             <h2 className="section-label">Sources</h2>
             <ul className="sources">
               {draft.source_links.map((s) => (
