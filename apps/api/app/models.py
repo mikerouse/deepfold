@@ -126,6 +126,8 @@ class MediaAsset(Base):
     policy_tag: Mapped[str] = mapped_column(String(64), default="saatchi_editorial")
     documentary_incident: Mapped[bool] = mapped_column(Boolean, default=False)
     placeholder_label: Mapped[str] = mapped_column(String(255), default="Editorial still")
+    url: Mapped[str] = mapped_column(String(1024), default="")
+    prompt_version: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     draft: Mapped[Draft] = relationship(back_populates="media")

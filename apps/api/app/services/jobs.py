@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.enums import JobKind, JobStatus, MediaRole, SocialPlatform, SocialStatus
 from app.models import Draft, DraftVersion, Job, MediaAsset, PublishTarget, SocialPost, utcnow
+from app.prompts.featured_image import (
+    BRIEF_VERSION,
+    DEFAULT_CREDIT,
+    featured_image_payload,
+    plate_url_for,
+)
 from app.services.audit import write_audit
 from app.services.localisation import fallback_local_graf
 
@@ -36,6 +42,12 @@ def draft_is_ready(draft: Draft) -> bool:
     return bool((draft.spine_body or "").strip())
 
 
+def _default_payload(draft: Draft, kind: str) -> dict[str, Any]:
+    if kind == JobKind.featured_image.value:
+        return featured_image_payload(draft)
+    return {"headline": draft.headline, "slug": draft.slug}
+
+
 def enqueue_job(db: Session, draft: Draft, kind: str, payload: dict[str, Any] | None = None) -> Job:
     for job in draft.jobs or []:
         if job.kind == kind and job.status in OPEN_STATUSES:
@@ -44,7 +56,7 @@ def enqueue_job(db: Session, draft: Draft, kind: str, payload: dict[str, Any] | 
         draft_id=draft.id,
         kind=kind,
         status=JobStatus.queued.value,
-        payload=payload or {"headline": draft.headline, "slug": draft.slug},
+        payload=payload or _default_payload(draft, kind),
     )
     db.add(job)
     db.flush()
@@ -120,6 +132,55 @@ def _write_version(db: Session, draft: Draft, actor: str) -> DraftVersion:
     return version
 
 
+def _media_url(body: Any) -> str:
+    return (getattr(body, "url", None) or getattr(body, "image_url", None) or "").strip()
+
+
+def _apply_featured_image(db: Session, draft: Draft, body: Any) -> dict[str, Any]:
+    url = _media_url(body)
+    prompt_version = (getattr(body, "prompt_version", None) or "").strip() or BRIEF_VERSION
+    placeholder = getattr(body, "placeholder_label", None)
+    caption = getattr(body, "caption", None)
+    alt_text = getattr(body, "alt_text", None)
+    credit = getattr(body, "credit", None)
+    has_fields = any([url, placeholder, caption, alt_text, credit, getattr(body, "prompt_version", None)])
+    featured = next((m for m in (draft.media or []) if m.role == MediaRole.featured.value), None)
+    if featured:
+        if placeholder:
+            featured.placeholder_label = placeholder
+        if caption is not None:
+            featured.caption = caption
+        if alt_text is not None:
+            featured.alt_text = alt_text
+        if credit is not None:
+            featured.credit = credit
+        if url:
+            featured.url = url
+        featured.prompt_version = prompt_version
+        featured.policy_tag = "saatchi_editorial"
+        featured.documentary_incident = False
+        return {"media": "updated", "url": featured.url, "prompt_version": featured.prompt_version}
+    if not has_fields:
+        return {}
+    asset = MediaAsset(
+        draft_id=draft.id,
+        role=MediaRole.featured.value,
+        placeholder_label=placeholder or "Editorial still",
+        caption=caption or "",
+        alt_text=alt_text or "",
+        credit=credit or DEFAULT_CREDIT,
+        policy_tag="saatchi_editorial",
+        documentary_incident=False,
+        url=url,
+        prompt_version=prompt_version,
+    )
+    db.add(asset)
+    db.flush()
+    if draft.media is not None:
+        draft.media.append(asset)
+    return {"media": "created", "url": asset.url, "prompt_version": asset.prompt_version}
+
+
 def apply_job_result(db: Session, draft: Draft, job: Job, body: Any, actor: str) -> dict[str, Any]:
     applied: dict[str, Any] = {}
     if job.kind == JobKind.draft_article.value:
@@ -137,31 +198,7 @@ def apply_job_result(db: Session, draft: Draft, job: Job, body: Any, actor: str)
             applied["tags"] = body.tags
         _write_version(db, draft, actor)
     elif job.kind == JobKind.featured_image.value:
-        featured = next((m for m in draft.media if m.role == MediaRole.featured.value), None)
-        if featured:
-            if getattr(body, "placeholder_label", None):
-                featured.placeholder_label = body.placeholder_label
-            if getattr(body, "caption", None):
-                featured.caption = body.caption
-            if getattr(body, "alt_text", None):
-                featured.alt_text = body.alt_text
-            if getattr(body, "credit", None):
-                featured.credit = body.credit
-            applied["media"] = "updated"
-        elif getattr(body, "placeholder_label", None) or getattr(body, "caption", None):
-            db.add(
-                MediaAsset(
-                    draft_id=draft.id,
-                    role=MediaRole.featured.value,
-                    placeholder_label=body.placeholder_label or "Editorial still",
-                    caption=body.caption or "",
-                    alt_text=body.alt_text or "",
-                    credit=body.credit or "Desk stock / editorial illustration",
-                    policy_tag="saatchi_editorial",
-                    documentary_incident=False,
-                )
-            )
-            applied["media"] = "created"
+        applied.update(_apply_featured_image(db, draft, body))
     elif job.kind == JobKind.localize_outlets.value:
         grafs = getattr(body, "local_grafs", None) or {}
         for target in draft.targets:
@@ -252,9 +289,19 @@ def fulfill_seeded_commission(db: Session, draft: Draft, actor: str) -> list[Job
             _write_version(db, draft, actor)
             completed.append(job)
         elif job.kind == JobKind.featured_image.value and draft.media:
+            for asset in draft.media:
+                if not (asset.url or "").strip():
+                    asset.url = plate_url_for(draft.slug)
+                if not (asset.prompt_version or "").strip():
+                    asset.prompt_version = BRIEF_VERSION
+                asset.documentary_incident = False
             job.status = JobStatus.completed.value
             job.worker = actor
-            job.result = {"applied": {"media": "seeded"}, "demo": True}
+            featured = next((m for m in draft.media if m.role == MediaRole.featured.value), draft.media[0])
+            job.result = {
+                "applied": {"media": "seeded", "url": featured.url, "prompt_version": featured.prompt_version},
+                "demo": True,
+            }
             job.claimed_at = utcnow()
             job.completed_at = job.claimed_at
             completed.append(job)

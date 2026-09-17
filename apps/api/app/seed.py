@@ -17,6 +17,7 @@ from app.models import (
     PublishTarget,
     SocialPost,
 )
+from app.prompts.featured_image import BRIEF_VERSION, featured_image_payload, plate_url_for
 from app.services.audit import write_audit
 from app.services.pipeline import SEED_STAGE_BY_SLUG
 from app.services.present import apply_confidence
@@ -322,18 +323,18 @@ def _seed_completed_jobs(db: Session, draft: Draft) -> None:
     if existing:
         return
     kinds = [
-        (JobKind.draft_article.value, {"spine_body": "seeded"}),
-        (JobKind.featured_image.value, {"media": "seeded"}),
-        (JobKind.localize_outlets.value, {"local_grafs": "seeded"}),
+        (JobKind.draft_article.value, {"spine_body": "seeded"}, {"headline": draft.headline, "slug": draft.slug}),
+        (JobKind.featured_image.value, {"media": "seeded"}, featured_image_payload(draft)),
+        (JobKind.localize_outlets.value, {"local_grafs": "seeded"}, {"headline": draft.headline, "slug": draft.slug}),
     ]
-    for kind, applied in kinds:
+    for kind, applied, payload in kinds:
         db.add(
             Job(
                 draft_id=draft.id,
                 kind=kind,
                 status=JobStatus.completed.value,
                 worker="system",
-                payload={"headline": draft.headline, "slug": draft.slug},
+                payload=payload,
                 result={"applied": applied, "demo": True},
             )
         )
@@ -357,6 +358,18 @@ def _ensure_demo_scale(db: Session) -> None:
         if not draft.geography:
             draft.geography = {}
         _seed_completed_jobs(db, draft)
+        for asset in draft.media or []:
+            if not (asset.url or "").strip():
+                asset.url = plate_url_for(draft.slug)
+            if not (asset.prompt_version or "").strip():
+                asset.prompt_version = BRIEF_VERSION
+        for job in draft.jobs or []:
+            if job.kind != JobKind.featured_image.value:
+                continue
+            payload = job.payload or {}
+            if payload.get("brief_version") and payload.get("base_brief"):
+                continue
+            job.payload = featured_image_payload(draft)
 
 
 def _seed(db: Session) -> None:
@@ -402,11 +415,13 @@ def _seed(db: Session) -> None:
                 {
                     "role": MediaRole.featured.value,
                     "placeholder_label": "County civic building — dusk exterior",
-                    "caption": "Stock civic exterior for a budget story. Saatchi-style editorial still; not a photograph of any named meeting.",
+                    "caption": "Generic editorial plate of a civic exterior at dusk. AI-generated illustration, not a photograph of any named meeting or building.",
                     "alt_text": "Lit stone civic building at dusk, used as a generic illustration of local government.",
                     "credit": "Desk stock / editorial illustration",
                     "policy_tag": "saatchi_editorial",
                     "documentary_incident": False,
+                    "url": plate_url_for("midlands-councils-40m-social-care"),
+                    "prompt_version": BRIEF_VERSION,
                 }
             ],
             "social": {
@@ -445,11 +460,13 @@ def _seed(db: Session) -> None:
                 {
                     "role": MediaRole.featured.value,
                     "placeholder_label": "Generic suburban street — daylight",
-                    "caption": "Generic suburban street stock. Not the burgled house, not the estate, not reconstructed CCTV. Documentary incident photography is forbidden here.",
+                    "caption": "Generic suburban street stock. AI-generated editorial illustration; not the burgled house, not the estate, not reconstructed CCTV.",
                     "alt_text": "Unidentified residential street in daylight, used only as a non-incident illustration.",
                     "credit": "Desk stock / editorial illustration",
                     "policy_tag": "saatchi_editorial",
                     "documentary_incident": False,
+                    "url": plate_url_for("nuneaton-camphill-burglary-appeal"),
+                    "prompt_version": BRIEF_VERSION,
                 }
             ],
             "social": {
@@ -493,11 +510,13 @@ def _seed(db: Session) -> None:
                 {
                     "role": MediaRole.featured.value,
                     "placeholder_label": "Empty committee chamber — lights on",
-                    "caption": "Empty chamber, editorial still. Not a photograph of the meeting, the builder, or the member.",
+                    "caption": "Empty chamber, generic editorial still. AI-generated illustration; not a photograph of the meeting, the builder, or the member.",
                     "alt_text": "Empty council committee room with microphones and blotters.",
                     "credit": "Desk stock / editorial illustration",
                     "policy_tag": "saatchi_editorial",
                     "documentary_incident": False,
+                    "url": plate_url_for("cabinet-member-housebuilder-meeting"),
+                    "prompt_version": BRIEF_VERSION,
                 }
             ],
             "social": {
@@ -541,11 +560,13 @@ def _seed(db: Session) -> None:
                 {
                     "role": MediaRole.featured.value,
                     "placeholder_label": "Dual carriageway at dusk — no incident",
-                    "caption": "Generic carriageway stock. Not crash photography, not a staged queue. Editorial illustration only.",
+                    "caption": "Generic carriageway stock. AI-generated editorial illustration; not crash photography, not a staged queue.",
                     "alt_text": "UK dual carriageway at dusk with no incident visible.",
                     "credit": "Desk stock / editorial illustration",
                     "policy_tag": "saatchi_editorial",
                     "documentary_incident": False,
+                    "url": plate_url_for("a5-hinckley-night-closures"),
+                    "prompt_version": BRIEF_VERSION,
                 }
             ],
             "social": {

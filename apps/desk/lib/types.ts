@@ -51,6 +51,8 @@ export type MediaAsset = {
   policy_tag: string;
   documentary_incident: boolean;
   placeholder_label: string;
+  url?: string;
+  prompt_version?: string;
 };
 
 export type SocialPost = {

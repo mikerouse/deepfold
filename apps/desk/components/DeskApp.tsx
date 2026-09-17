@@ -176,7 +176,7 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
 
   const showsBody = stage === "drafting" || stage === "checking" || stage === "publication";
   const showsSocial = stage === "social";
-  const showsImage = (stage === "drafting" || stage === "checking") && !generating;
+  const showsImage = stage === "drafting" || stage === "checking";
   const selectedOutlets = draft?.targets.filter((t) => t.selected) || [];
   const publisher = settings?.publisher_name || "Newsworld";
 
@@ -288,6 +288,9 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
       : null;
   const featured = draft?.media.find((m) => m.role === "featured") || draft?.media[0];
   const listMode = view === "list";
+  const imageQueued = Boolean(
+    draft?.jobs.some((job) => job.kind === "featured_image" && (job.status === "queued" || job.status === "claimed")),
+  );
 
   return (
     <div className={`desk ${listMode ? "list-mode" : `story-mode stage-${stage}`}${showRail && !listMode ? " has-rail" : ""}`}>
@@ -402,11 +405,25 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
                 ) : null}
                 {showsImage && featured ? (
                   <figure className="well-plate">
-                    <div className="plate" title={featured.alt_text}>{featured.placeholder_label}</div>
+                    <div className="plate">
+                      {featured.url ? (
+                        <img src={featured.url} alt={featured.alt_text || featured.placeholder_label} />
+                      ) : (
+                        <span className="plate-label">{featured.placeholder_label}</span>
+                      )}
+                    </div>
                     <figcaption className="caption">
                       {featured.caption} · {featured.credit}
                       {featured.documentary_incident ? " · Documentary (must be real)" : ""}
                     </figcaption>
+                  </figure>
+                ) : null}
+                {showsImage && !featured && imageQueued ? (
+                  <figure className="well-plate">
+                    <div className="plate plate-queued" aria-live="polite">
+                      Image job queued…
+                    </div>
+                    <figcaption className="caption">Grok Bot has the featured-image brief. This desk only stores the plate.</figcaption>
                   </figure>
                 ) : null}
                 {generating ? (
