@@ -1,21 +1,15 @@
 :root {
-  --paper: #efe4cf;
-  --paper-2: #f7efe0;
-  --ink: #1b1714;
-  --ink-soft: #4a433c;
-  --rule: #c9b496;
-  --mast: #6b1422;
-  --mast-deep: #3f0c16;
-  --navy: #1e2d3d;
-  --gold: #b0893a;
-  --approve: #215c42;
-  --hold: #8a5a12;
-  --reject: #8c1d24;
-  --caution: #9a4a12;
-  --verified: #215c42;
-  --legal: #5b1d6b;
-  --queue-w: 300px;
-  --rail-w: 340px;
+  --paper: #f7f5f1;
+  --paper-2: #fffcf8;
+  --ink: #161513;
+  --ink-2: #5e5a54;
+  --ink-3: #8a857c;
+  --rule: #ddd8ce;
+  --rule-strong: #161513;
+  --accent: #1b2744;
+  --mark: #7a1e28;
+  --queue-w: 23.5rem;
+  --rail-w: 19.5rem;
 }
 
 * {
@@ -30,24 +24,31 @@ body {
   overflow: hidden;
   background: var(--paper);
   color: var(--ink);
-  font-family: "Public Sans", "Segoe UI", system-ui, sans-serif;
-}
-
-body {
-  background-image:
-    radial-gradient(transparent 0 1px, rgba(27, 23, 20, 0.015) 1px 2px),
-    linear-gradient(180deg, #e7d8bc 0, var(--paper) 140px);
-  background-size: 4px 4px, 100% 100%;
+  font-family: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--mast);
+  color: var(--accent);
+  text-underline-offset: 0.15em;
 }
 
 button,
 textarea,
 input {
   font-family: inherit;
+  color: inherit;
+}
+
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+.q-item:focus-visible,
+.stage:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .desk {
@@ -55,335 +56,314 @@ input {
   height: 100dvh;
   overflow: hidden;
   display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
-  grid-template-columns: var(--queue-w) 1fr var(--rail-w);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-columns: var(--queue-w) minmax(0, 1fr);
+  grid-template-areas:
+    "mast mast"
+    "stages stages"
+    "alert alert"
+    "queue well"
+    "actions actions";
+  background: var(--paper);
+}
+
+.desk.has-rail {
+  grid-template-columns: var(--queue-w) minmax(0, 1fr) var(--rail-w);
   grid-template-areas:
     "mast mast mast"
     "stages stages stages"
-    "flags flags flags"
+    "alert alert alert"
     "queue well rail"
-    "queue actions actions";
+    "actions actions actions";
 }
 
 .mast {
   grid-area: mast;
   display: flex;
   justify-content: space-between;
-  align-items: stretch;
-  background: linear-gradient(180deg, var(--mast-deep), var(--mast));
-  color: #f4ead8;
-  border-bottom: 4px solid var(--gold);
+  align-items: baseline;
+  gap: 2rem;
+  padding: 1.15rem 2rem 0.9rem;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule-strong);
 }
 
 .mast-brand {
-  padding: 14px 22px 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
 }
 
 .kicker {
-  letter-spacing: 0.28em;
-  font-size: 10px;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  opacity: 0.75;
+  color: var(--ink-2);
 }
 
 .mast h1 {
   font-family: "Newsreader", "Iowan Old Style", Georgia, serif;
-  font-weight: 600;
-  font-size: 28px;
-  margin: 2px 0 0;
-  letter-spacing: 0.02em;
-}
-
-.mast-line {
-  margin: 4px 0 0;
-  font-size: 13px;
-  opacity: 0.78;
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  font-size: 1.55rem;
+  line-height: 1;
+  margin: 0;
+  letter-spacing: 0.01em;
 }
 
 .mast-meta {
   display: flex;
-  gap: 28px;
-  align-items: center;
-  padding: 0 22px;
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  gap: 1.75rem;
+  margin: 0;
+}
+
+.mast-meta div {
+  margin: 0;
+}
+
+.mast-meta dt {
+  font-size: 10px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  border-left: 1px solid rgba(244, 234, 216, 0.2);
+  color: var(--ink-3);
 }
 
-.mast-meta strong {
-  display: block;
-  font-size: 14px;
-  letter-spacing: 0;
-  text-transform: none;
-  font-family: "Newsreader", Georgia, serif;
+.mast-meta dd {
+  margin: 0.15rem 0 0;
+  font-size: 13px;
+  color: var(--ink);
 }
 
-.flags {
-  grid-area: flags;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 8px 16px;
-  background: var(--navy);
-  color: #f4ead8;
-  font-size: 12px;
-}
-
-.flags span {
-  border: 1px solid rgba(244, 234, 216, 0.25);
-  padding: 3px 8px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.flags .hot {
-  background: var(--reject);
-  border-color: transparent;
+.mast-meta .hot dd {
+  color: var(--mark);
 }
 
 .stages {
   grid-area: stages;
   display: flex;
+  gap: 2.25rem;
+  padding: 0 2rem;
   background: var(--paper-2);
   border-bottom: 1px solid var(--rule);
 }
 
 .stage {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  gap: 0 12px;
-  text-align: left;
+  appearance: none;
   background: transparent;
   border: 0;
-  border-right: 1px solid var(--rule);
-  padding: 10px 16px 12px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.85rem 0 0.75rem;
   cursor: pointer;
-  color: inherit;
+  color: var(--ink-2);
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
 }
 
-.stage:last-child {
-  border-right: 0;
+.stage:hover {
+  color: var(--ink);
 }
 
 .stage.active {
-  background: var(--paper);
-  box-shadow: inset 0 -3px 0 var(--mast);
+  color: var(--ink);
+  border-bottom-color: var(--ink);
 }
 
 .stage-label {
-  grid-column: 1;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+  font-size: 14px;
+  letter-spacing: 0.01em;
 }
 
 .stage-count {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-  font-family: "Newsreader", Georgia, serif;
-  font-size: 28px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--mast);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--ink-3);
 }
 
-.stage-hint {
-  grid-column: 1;
-  font-size: 12px;
+.stage.active .stage-count {
   color: var(--ink);
+}
+
+.stage-count.zero {
+  color: var(--ink-3);
+  opacity: 0.7;
+}
+
+.alert {
+  grid-area: alert;
+  padding: 0.65rem 2rem;
+  font-size: 13px;
+  color: var(--mark);
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
 }
 
 .queue {
   grid-area: queue;
   border-right: 1px solid var(--rule);
-  background: #e7d9c0;
+  background: var(--paper-2);
   overflow: auto;
-}
-
-.queue h2,
-.rail h2,
-.well-head .section-label {
-  margin: 0;
-  padding: 12px 14px 8px;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
 }
 
 .queue .empty,
 .empty-well {
-  padding: 14px 16px 24px;
-  color: var(--ink-soft);
+  padding: 1.25rem 1.5rem 2rem;
+  color: var(--ink-2);
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.5;
+  max-width: 36rem;
 }
 
 .empty-well h2 {
   font-family: "Newsreader", Georgia, serif;
-  font-size: 28px;
+  font-size: 1.75rem;
+  font-weight: 500;
   color: var(--ink);
-  margin: 0 0 8px;
-  letter-spacing: 0;
-  text-transform: none;
+  margin: 0 0 0.5rem;
 }
 
 .q-item {
-  display: grid;
-  grid-template-columns: 52px 1fr;
-  gap: 10px;
+  display: block;
   width: 100%;
   text-align: left;
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--rule);
-  padding: 12px 14px 14px;
+  padding: 1.05rem 1.4rem 1.15rem;
   cursor: pointer;
   color: inherit;
+  box-shadow: inset 2px 0 0 transparent;
 }
 
-.q-thumb {
-  width: 52px;
-  height: 52px;
-  background: var(--navy);
-  color: #f4ead8;
-  font-size: 9px;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-  padding: 6px;
-  overflow: hidden;
-  font-family: "Newsreader", Georgia, serif;
-}
-
-.q-thumb.pitch {
-  background: var(--mast);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  display: flex;
-  align-items: flex-end;
+.q-item:hover {
+  background: rgba(22, 21, 19, 0.025);
 }
 
 .q-item.active {
-  background: var(--paper-2);
-  box-shadow: inset 4px 0 0 var(--mast);
-}
-
-.q-item .town {
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--mast);
+  background: var(--paper);
+  box-shadow: inset 2px 0 0 var(--ink);
 }
 
 .q-item h3 {
   font-family: "Newsreader", Georgia, serif;
-  font-size: 16px;
-  font-weight: 600;
-  margin: 4px 0 6px;
-  line-height: 1.25;
+  font-size: 1.12rem;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.28;
+}
+
+.q-abstract {
+  margin: 0.35rem 0 0.45rem;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .q-meta {
   display: flex;
-  gap: 6px;
+  gap: 0.65rem;
   flex-wrap: wrap;
-}
-
-.pill {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  border: 1px solid var(--rule);
-  background: var(--paper);
-}
-
-.pill.verified { color: var(--verified); border-color: var(--verified); }
-.pill.single_source { color: var(--caution); border-color: var(--caution); }
-.pill.caution { color: var(--caution); border-color: var(--caution); background: #f3e0c6; }
-.pill.defamation_sensitive { color: var(--legal); border-color: var(--legal); background: #efe3f3; }
-.pill.awaiting_review,
-.pill.checking,
-.pill.pitch { color: var(--navy); }
-.pill.drafting { color: var(--hold); }
-.pill.held { color: var(--hold); }
-.pill.left { color: var(--ink-soft); }
-.pill.rejected,
-.pill.no_go { color: var(--reject); }
-.pill.approved_cms_draft,
-.pill.publication { color: var(--approve); }
-.pill.changes_requested { color: var(--caution); }
-
-.chip {
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: #dfd0b6;
-  color: var(--ink);
-}
-
-.headline-display {
-  font-family: "Newsreader", Georgia, serif;
-  font-size: 34px;
-  line-height: 1.15;
-  font-weight: 600;
-  margin: 0;
-}
-
-.abstract-display {
-  font-size: 17px;
-  line-height: 1.45;
-  color: var(--ink-soft);
-  margin: 10px 0 14px;
-}
-
-.pitch-note {
-  margin: 18px 0 8px;
-  padding: 14px 0 4px;
-  border-top: 1px solid var(--rule);
-  color: var(--ink-soft);
-  font-size: 15px;
-  line-height: 1.5;
-}
-
-.quiet-banner {
-  margin: 12px 0 0;
-  padding: 10px 12px;
-  background: #e4efe6;
-  border: 1px solid var(--approve);
-  color: var(--approve);
-  font-size: 13px;
-}
-
-.section-label {
-  margin: 18px 0 8px;
-  padding: 0;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-
-.action-hint {
-  align-self: center;
+  align-items: baseline;
+  color: var(--ink-3);
   font-size: 12px;
-  color: var(--ink-soft);
-  letter-spacing: 0.02em;
-  text-transform: none;
+}
+
+.mark {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.mark.defamation_sensitive,
+.mark.single_source,
+.mark.caution,
+.mark.rejected,
+.mark.no_go {
+  color: var(--mark);
+}
+
+.mark.held,
+.mark.changes_requested {
+  color: #8a5a12;
+}
+
+.mark.left {
+  color: var(--ink-3);
 }
 
 .well {
   grid-area: well;
   overflow: auto;
-  padding: 18px 28px 40px;
-  background: var(--paper-2);
+  padding: 2.25rem 3.25rem 4rem;
+  background: var(--paper);
+}
+
+.well-inner {
+  max-width: 65ch;
+}
+
+.kicker-story {
+  margin: 0 0 0.55rem;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.kicker-story .sensitive {
+  color: var(--mark);
+}
+
+.byline {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 0 0 1.1rem;
+}
+
+.headline-display {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 2.35rem;
+  line-height: 1.18;
+  font-weight: 500;
+  margin: 0;
+}
+
+.abstract-display {
+  font-size: 1.12rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin: 0.85rem 0 0;
+}
+
+.pitch-note {
+  margin: 1.75rem 0 0;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.quiet-banner {
+  margin: 1rem 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+.section-label {
+  margin: 2rem 0 0.6rem;
+  padding: 0;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .headline-input,
@@ -397,182 +377,235 @@ input {
   background: transparent;
   color: inherit;
   resize: vertical;
+  padding: 0;
+}
+
+.social-input {
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 0.25rem 0 0.4rem;
 }
 
 .headline-input {
   font-family: "Newsreader", Georgia, serif;
-  font-size: 34px;
-  line-height: 1.15;
-  font-weight: 600;
-  padding: 0;
+  font-size: 2.15rem;
+  line-height: 1.18;
+  font-weight: 500;
 }
 
 .standfirst-input {
-  font-size: 17px;
-  line-height: 1.4;
-  color: var(--ink-soft);
-  margin: 8px 0 12px;
-  min-height: 52px;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+  margin: 0.75rem 0 1.25rem;
+  min-height: 3rem;
 }
 
 .body-input {
-  font-size: 16.5px;
-  line-height: 1.55;
-  min-height: 280px;
+  font-size: 1.05rem;
+  line-height: 1.62;
+  min-height: 18rem;
   border-top: 1px solid var(--rule);
-  padding-top: 16px;
-}
-
-.byline {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin-bottom: 8px;
+  padding-top: 1.15rem;
 }
 
 .sources {
-  margin: 18px 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .sources li {
-  margin: 0 0 8px;
-  font-size: 13px;
+  margin: 0 0 0.55rem;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.outlet-line {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.5;
 }
 
 .rail {
   grid-area: rail;
   border-left: 1px solid var(--rule);
   overflow: auto;
-  background: #eadcc6;
+  background: var(--paper-2);
 }
 
-.panel {
-  padding: 0 14px 16px;
+.rail section {
+  padding: 1.15rem 1.35rem 1.25rem;
   border-bottom: 1px solid var(--rule);
 }
 
+.rail h2 {
+  margin: 0 0 0.55rem;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
 .meter {
-  height: 8px;
-  background: #d7c5a6;
-  margin: 8px 0;
+  height: 2px;
+  background: var(--rule);
+  margin: 0.55rem 0 0.45rem;
 }
 
 .meter > span {
   display: block;
   height: 100%;
-  background: var(--navy);
+  background: var(--accent);
 }
 
 .notes {
   font-size: 12px;
-  color: var(--ink-soft);
-  margin: 6px 0;
+  color: var(--ink-2);
+  margin: 0.35rem 0;
+  line-height: 1.45;
 }
 
 .outlet {
-  border: 1px solid var(--rule);
-  background: var(--paper-2);
-  padding: 10px;
-  margin: 8px 0;
+  display: block;
+  margin: 0 0 1.15rem;
 }
 
 .outlet header {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
   align-items: baseline;
 }
 
+.outlet header input {
+  accent-color: var(--accent);
+}
+
 .outlet .brief {
-  font-size: 11px;
-  color: var(--ink-soft);
-  margin: 4px 0 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 0.3rem 0 0.45rem;
+}
+
+.graf-input {
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 0.25rem 0 0.4rem;
 }
 
 .plate {
-  background: var(--navy);
-  color: #f4ead8;
-  min-height: 120px;
+  background: #2c2b28;
+  color: #f3f1ec;
+  min-height: 7.5rem;
   display: flex;
   align-items: flex-end;
-  padding: 12px;
+  padding: 0.85rem 1rem;
   font-family: "Newsreader", Georgia, serif;
-  font-size: 18px;
+  font-size: 1.05rem;
+  line-height: 1.3;
 }
 
 .caption {
   font-size: 12px;
-  margin: 8px 0 0;
+  margin: 0.5rem 0 0;
+  color: var(--ink-2);
+  line-height: 1.4;
 }
 
 .social {
-  margin: 8px 0 14px;
+  margin: 0 0 1.25rem;
 }
 
 .social .row {
   display: flex;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
 }
 
 .actions {
   grid-area: actions;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 16px;
-  border-top: 2px solid var(--ink);
-  background: #e3d3b6;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+  padding: 0.85rem 2rem;
+  border-top: 1px solid var(--rule-strong);
+  background: var(--paper-2);
 }
 
 .btn {
-  border: 1px solid var(--ink);
-  background: var(--paper);
-  color: var(--ink);
-  padding: 8px 12px;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  padding: 0.45rem 0.7rem;
   cursor: pointer;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-size: 11px;
+  font-size: 14px;
+}
+
+.btn:hover:not(:disabled) {
+  color: var(--ink);
 }
 
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .btn.primary {
-  background: var(--approve);
-  color: #f4ead8;
-  border-color: var(--approve);
+  background: var(--ink);
+  color: var(--paper-2);
+  padding: 0.5rem 1.05rem;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--paper-2);
 }
 
 .btn.danger {
-  background: var(--reject);
-  color: #f4ead8;
-  border-color: var(--reject);
+  color: var(--mark);
+}
+
+.btn.danger:hover:not(:disabled) {
+  color: var(--mark);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .btn.quiet {
-  background: transparent;
+  color: var(--ink-3);
 }
 
-.banner {
-  padding: 20px 28px;
+.btn.confirm {
+  border: 1px solid var(--ink);
+  padding: 0.5rem 1.05rem;
 }
 
-.error {
-  color: var(--reject);
-  font-size: 13px;
-  padding: 8px 16px;
+.btn.confirm.danger {
+  border-color: var(--mark);
+}
+
+.modal-error {
+  color: var(--mark);
+  margin-top: 0.55rem;
+}
+
+.action-hint {
+  margin-left: 0.4rem;
+  font-size: 12px;
+  color: var(--ink-3);
 }
 
 .modal-back {
   position: fixed;
   inset: 0;
-  background: rgba(27, 23, 20, 0.45);
+  background: rgba(22, 21, 19, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -580,15 +613,36 @@ input {
 }
 
 .modal {
-  width: min(480px, 92vw);
+  width: min(28rem, 92vw);
   background: var(--paper-2);
-  border: 2px solid var(--ink);
-  padding: 18px;
+  border: 1px solid var(--ink);
+  padding: 1.5rem 1.6rem 1.35rem;
 }
 
 .modal h3 {
   font-family: "Newsreader", Georgia, serif;
-  margin: 0 0 8px;
+  font-weight: 500;
+  font-size: 1.45rem;
+  margin: 0 0 0.5rem;
+}
+
+.reason-input {
+  border-bottom: 1px solid var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+  margin-top: 0.85rem;
+  min-height: 5.5rem;
+}
+
+.modal .row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  align-items: center;
+}
+
+figure {
+  margin: 0;
 }
 
 @media (max-width: 1080px) {
@@ -596,14 +650,15 @@ input {
   body {
     overflow: auto;
   }
-  .desk {
+  .desk,
+  .desk.has-rail {
     height: auto;
     min-height: 100vh;
     grid-template-columns: 1fr;
     grid-template-areas:
       "mast"
       "stages"
-      "flags"
+      "alert"
       "queue"
       "well"
       "rail"
@@ -612,5 +667,8 @@ input {
   .queue,
   .rail {
     max-height: 280px;
+  }
+  .well {
+    padding: 1.5rem 1.25rem 3rem;
   }
 }

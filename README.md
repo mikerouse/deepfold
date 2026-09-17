@@ -108,6 +108,16 @@ The desk opens on **Pitch**. Seeded copy:
 
 Checking still localises per outlet and files WordPress **drafts** (dry-run unless `WP_LIVE=true`). Social **connectors are not wired**; stubs appear at the Social stage. Approve & publish remains feature-flagged **off**.
 
+## Desk design
+
+The journalist UI is meant to read as newsroom furniture — a high-end British paper’s back-bench tool — not a SaaS admin panel.
+
+- Off-white paper, near-black ink, one navy accent. Crimson only for No-go / reject / kill switch.
+- Stage strip is labelled text + counts with an underline for the active stage, not badge tabs.
+- Spike rows: headline, one-line abstract, at most two or three quiet markers.
+- Story well is a ~65-character column. One primary action per stage; secondary actions stay as text.
+- Pitch hides the right-hand rail. No-go is a sparse confirm with a required reason.
+
 ## Learning loop and confidence
 
 Every human decision is a `Decision` row plus an `AuditEvent`. The diff JSON records approve-as-is vs tweak (headline/body), reject + reason, outlet overrides, and social edits.
