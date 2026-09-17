@@ -168,11 +168,12 @@ Outlet registry is a first-class table so the same desk can grow to every UK tow
 
 ## Image policy
 
-Pointer for every agent and journalist:
+Pointer for every agent and journalist — full standing recipe: [`docs/featured-image-brief.md`](docs/featured-image-brief.md) and [`apps/api/app/prompts/featured_image_v1.md`](apps/api/app/prompts/featured_image_v1.md).
 
 - Featured art is **Saatchi-style editorial** (mood, civic fabric, a still that could sit in a magazine).
 - **No fake documentary incident photos.** Do not generate or commission a picture of the burglary, the crash, the meeting, or the named people “as if a photographer was there.”
-- Seeded media assets are labelled plates with caption, alt, credit, and `documentary_incident=false`. If a real staff/agency photograph of an incident is used later, mark `documentary_incident=true` and it must be a real photograph, captioned as such.
+- Seeded media assets are labelled plates with URL, caption, alt, credit, `prompt_version=featured_image_v1`, and `documentary_incident=false`. If a real staff/agency photograph of an incident is used later, mark `documentary_incident=true` and it must be a real photograph, captioned as such.
+- Grok Bot completes `featured_image` jobs; Deepfold does not call an image model.
 
 ## API (minimum)
 

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Empty council committee room with microphones and blotters">
+  <defs>
+    <linearGradient id="ch-wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3d3a34"/>
+      <stop offset="100%" stop-color="#1f1d1a"/>
+    </linearGradient>
+    <linearGradient id="ch-wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8a6a48"/>
+      <stop offset="100%" stop-color="#4a3624"/>
+    </linearGradient>
+    <filter id="ch-grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.16"/></feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#ch-wall)"/>
+  <rect x="120" y="80" width="1360" height="220" fill="#2a2824"/>
+  <rect x="160" y="110" width="180" height="160" fill="#c9b48a" opacity="0.25"/>
+  <rect x="1260" y="110" width="180" height="160" fill="#c9b48a" opacity="0.25"/>
+  <ellipse cx="800" cy="70" rx="220" ry="18" fill="#e8d7a8" opacity="0.35"/>
+  <rect x="200" y="420" width="1200" height="28" fill="url(#ch-wood)"/>
+  <rect x="240" y="448" width="1120" height="14" fill="#d7c4a0"/>
+  <g fill="#2c2824">
+    <rect x="280" y="478" width="70" height="90"/>
+    <rect x="430" y="478" width="70" height="90"/>
+    <rect x="580" y="478" width="70" height="90"/>
+    <rect x="730" y="478" width="70" height="90"/>
+    <rect x="880" y="478" width="70" height="90"/>
+    <rect x="1030" y="478" width="70" height="90"/>
+    <rect x="1180" y="478" width="70" height="90"/>
+  </g>
+  <rect x="280" y="620" width="1040" height="22" fill="url(#ch-wood)"/>
+  <rect x="310" y="642" width="980" height="12" fill="#d7c4a0"/>
+  <g fill="#2c2824">
+    <rect x="340" y="668" width="70" height="90"/>
+    <rect x="520" y="668" width="70" height="90"/>
+    <rect x="700" y="668" width="70" height="90"/>
+    <rect x="880" y="668" width="70" height="90"/>
+    <rect x="1060" y="668" width="70" height="90"/>
+  </g>
+  <g fill="#1a1816">
+    <rect x="308" y="430" width="8" height="36"/>
+    <rect x="458" y="430" width="8" height="36"/>
+    <rect x="608" y="430" width="8" height="36"/>
+    <rect x="758" y="430" width="8" height="36"/>
+    <rect x="908" y="430" width="8" height="36"/>
+    <rect x="1058" y="430" width="8" height="36"/>
+    <rect x="1208" y="430" width="8" height="36"/>
+  </g>
+  <g fill="#c9c2b4">
+    <circle cx="312" cy="424" r="7"/>
+    <circle cx="462" cy="424" r="7"/>
+    <circle cx="612" cy="424" r="7"/>
+    <circle cx="762" cy="424" r="7"/>
+    <circle cx="912" cy="424" r="7"/>
+    <circle cx="1062" cy="424" r="7"/>
+    <circle cx="1212" cy="424" r="7"/>
+  </g>
+  <rect x="0" y="0" width="1600" height="900" filter="url(#ch-grain)" fill="#fff" opacity="0.28"/>
+</svg>

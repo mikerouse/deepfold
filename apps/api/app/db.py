@@ -58,6 +58,13 @@ def ensure_schema() -> None:
         if "county" not in outlet_cols:
             statements.append("ALTER TABLE outlets ADD COLUMN county VARCHAR(128) DEFAULT ''")
 
+    if "media_assets" in inspector.get_table_names():
+        media_cols = {col["name"] for col in inspector.get_columns("media_assets")}
+        if "url" not in media_cols:
+            statements.append("ALTER TABLE media_assets ADD COLUMN url VARCHAR(1024) DEFAULT ''")
+        if "prompt_version" not in media_cols:
+            statements.append("ALTER TABLE media_assets ADD COLUMN prompt_version VARCHAR(64) DEFAULT ''")
+
     if not statements:
         return
     with engine.begin() as conn:

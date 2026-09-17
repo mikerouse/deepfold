@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="UK dual carriageway at dusk with no incident visible">
+  <defs>
+    <linearGradient id="rd-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c2438"/>
+      <stop offset="50%" stop-color="#6a5348"/>
+      <stop offset="78%" stop-color="#c48a4a"/>
+      <stop offset="100%" stop-color="#2a1c14"/>
+    </linearGradient>
+    <linearGradient id="rd-tarmac" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a3a3c"/>
+      <stop offset="100%" stop-color="#161618"/>
+    </linearGradient>
+    <filter id="rd-grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.14"/></feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#rd-sky)"/>
+  <ellipse cx="1180" cy="240" rx="70" ry="70" fill="#f0d9b0" opacity="0.45"/>
+  <rect x="0" y="430" width="1600" height="470" fill="#243022"/>
+  <polygon points="800,430 1600,900 0,900" fill="url(#rd-tarmac)"/>
+  <polygon points="792,430 808,430 820,900 780,900" fill="#c9b48a" opacity="0.55"/>
+  <g fill="#d8d2c4" opacity="0.7">
+    <rect x="620" y="520" width="18" height="8"/>
+    <rect x="600" y="580" width="22" height="9"/>
+    <rect x="575" y="650" width="26" height="10"/>
+    <rect x="545" y="730" width="30" height="11"/>
+    <rect x="960" y="520" width="18" height="8"/>
+    <rect x="978" y="580" width="22" height="9"/>
+    <rect x="998" y="650" width="26" height="10"/>
+    <rect x="1024" y="730" width="30" height="11"/>
+  </g>
+  <rect x="0" y="0" width="1600" height="900" filter="url(#rd-grain)" fill="#fff" opacity="0.32"/>
+</svg>

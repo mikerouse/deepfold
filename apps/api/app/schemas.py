@@ -60,6 +60,8 @@ class MediaAssetOut(BaseModel):
     policy_tag: str
     documentary_incident: bool
     placeholder_label: str
+    url: str = ""
+    prompt_version: str = ""
 
     model_config = {"from_attributes": True}
 
@@ -172,6 +174,9 @@ class JobCompleteIn(BaseModel):
     caption: str | None = None
     alt_text: str | None = None
     credit: str | None = None
+    url: str | None = None
+    image_url: str | None = None
+    prompt_version: str | None = None
     local_grafs: dict[str, str] | None = None
     social: list[dict[str, Any]] | None = None
     result: dict[str, Any] | None = None

@@ -922,13 +922,35 @@ select:focus-visible,
 .plate {
   background: #2c2b28;
   color: #f3f1ec;
+  aspect-ratio: 16 / 9;
   min-height: 7.5rem;
   display: flex;
   align-items: flex-end;
-  padding: 0.85rem 1rem;
+  overflow: hidden;
   font-family: "Newsreader", Georgia, serif;
   font-size: 1.05rem;
   line-height: 1.3;
+}
+
+.plate img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.plate-label {
+  display: block;
+  padding: 0.85rem 1rem;
+}
+
+.plate-queued {
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--ink-3);
+  border: 1px dashed var(--rule);
+  font-size: 0.95rem;
 }
 
 .caption {

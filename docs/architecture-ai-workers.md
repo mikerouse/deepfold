@@ -36,13 +36,52 @@ Statuses: `queued` → `claimed` → `completed` | `failed` | `cancelled`.
 
 Open jobs are cancelled on **No-go** and **Back to pitch**.
 
+### Featured image (`featured_image`)
+
+Standing recipe (do not invent policy): [`docs/featured-image-brief.md`](featured-image-brief.md) and the versioned prompt [`apps/api/app/prompts/featured_image_v1.md`](../apps/api/app/prompts/featured_image_v1.md) (`brief_version`: `featured_image_v1`).
+
+On **Go** the API enqueues this kind with a complete payload so a Grok Bot skill can run without a second style guide:
+
+| Field | Meaning |
+| --- | --- |
+| `brief_version` | `featured_image_v1` |
+| `brief_path` | repo path of the prompt file |
+| `base_brief` | full text of that file |
+| `story_specific_scene` | 1–3 sentences from headline / abstract / spine / geography (heuristic stub) |
+| `geography` | pitch regions / counties / towns |
+| `documentary_safe` | always `true` |
+| `headline`, `slug`, `standfirst` | story context |
+
+The worker concatenates `base_brief` + `Story-specific scene: {story_specific_scene}`, generates **one landscape still** outside Deepfold, and completes:
+
+```http
+POST /jobs/{id}/complete
+```
+
+```json
+{
+  "worker": "grok-bot",
+  "url": "https://…",
+  "alt_text": "What the still actually shows",
+  "caption": "Generic editorial still; AI-generated illustration, not a photograph of the event.",
+  "prompt_version": "featured_image_v1",
+  "placeholder_label": "County civic building — dusk exterior",
+  "credit": "Desk stock / editorial illustration"
+}
+```
+
+Deepfold stores a `MediaAsset` (`role=featured`) on the draft: `url`, alt, caption, `prompt_version`. AI plates are never `documentary_incident`. Fail the job rather than file a fake crime / fire / crash / named-person photo.
+
+The Midlands demo pitch already has a seeded plate URL. **Go** completes `featured_image` in-process from that seed so Drafting/Checking are not empty. That is demo fulfillment, not an in-app image-model call.
+
 ### Stub HTTP (real, tested)
 
 Grok Bot (cloud agent, routine, or skill) talks only to these endpoints. No model keys in Deepfold.
 
 - `GET /jobs?status=queued&kind=draft_article`
+- `GET /jobs?status=queued&kind=featured_image`
 - `POST /jobs/{id}/claim` `{ "worker": "grok-bot" }`
-- `POST /jobs/{id}/complete` `{ "worker": "grok-bot", "spine_body": "..." }` (fields depend on kind)
+- `POST /jobs/{id}/complete` `{ "worker": "grok-bot", "spine_body": "..." }` (fields depend on kind; featured image: `url`, `alt_text`, `caption`, `prompt_version`)
 - `GET /jobs/{id}`
 
 Claim is exclusive (`409` if not `queued`). Complete from `queued` or `claimed` is allowed so a single worker step can finish a demo job. Failed completes send `error`.
@@ -77,7 +116,7 @@ If the bot is not running, Drafting shows **Draft generating…** and a skeleton
 - Auto-publish of `single_source`, `caution`, or `defamation_sensitive` copy
 - Treating Conservative Post as the product name — it is one **title** under the publisher (`PUBLISHER_NAME`, default Newsworld)
 
-Image policy is unchanged: editorial stills, not reconstructed incidents.
+Image policy is unchanged: editorial stills, not reconstructed incidents. The standing recipe is [`docs/featured-image-brief.md`](featured-image-brief.md) / `featured_image_v1`.
 
 ## Titles at thousands-scale
 
