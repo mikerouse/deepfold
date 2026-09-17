@@ -38,7 +38,8 @@ services:
       KILL_SWITCH: "false"
       WP_LIVE: "false"
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
-      DEFAULT_ACTOR: journalist@conservativepost.local
+      DEFAULT_ACTOR: journalist@newsworld.local
+      PUBLISHER_NAME: Newsworld
     depends_on:
       db:
         condition: service_healthy

@@ -18,11 +18,17 @@ from app.enums import (
 from app.models import Decision, Draft, DraftVersion, PublishTarget, SocialPost
 from app.schemas import DecisionCreate, DraftDetail, DraftListItem
 from app.services.audit import write_audit
+from app.services.jobs import (
+    cancel_open_jobs,
+    enqueue_commission_jobs,
+    enqueue_social_job,
+    fulfill_seeded_commission,
+)
 from app.services.localisation import compose_variant, fallback_local_graf
+from app.services.outlets import ensure_targets
 from app.services.pipeline import (
     ARCHIVED_STATUSES,
     action_allowed,
-    commissioned_spine,
     next_status,
     stage_for_status,
     statuses_for_stage,
@@ -48,6 +54,7 @@ def _load_draft(db: Session, draft_id: uuid.UUID) -> Draft:
             selectinload(Draft.social_posts),
             selectinload(Draft.decisions),
             selectinload(Draft.versions),
+            selectinload(Draft.jobs),
         )
         .filter(Draft.id == draft_id)
         .one_or_none()
@@ -104,26 +111,33 @@ def _apply_copy_edits(draft: Draft, body: DecisionCreate, *, allow_spine: bool) 
     return diff
 
 
-def _apply_outlet_selection(draft: Draft, body: DecisionCreate) -> dict[str, Any]:
+def _apply_outlet_selection(db: Session, draft: Draft, body: DecisionCreate) -> dict[str, Any]:
     diff: dict[str, Any] = {}
     if body.selected_outlet_ids is None and not body.local_grafs:
         return diff
-    selected = set(str(i) for i in (body.selected_outlet_ids or []))
     before = [str(t.outlet_id) for t in draft.targets if t.selected]
-    for target in draft.targets:
-        if body.selected_outlet_ids is not None:
-            target.selected = str(target.outlet_id) in selected
-        if body.local_grafs and str(target.outlet_id) in body.local_grafs:
-            new_graf = body.local_grafs[str(target.outlet_id)]
-            if new_graf != target.local_graf:
-                diff.setdefault("local_grafs", {})[str(target.outlet_id)] = {
-                    "from": target.local_graf,
-                    "to": new_graf,
-                }
-                target.local_graf = new_graf
+    before_grafs = {str(t.outlet_id): t.local_graf for t in draft.targets}
+    if body.selected_outlet_ids is not None:
+        try:
+            ensure_targets(db, draft, list(body.selected_outlet_ids), body.local_grafs)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    elif body.local_grafs:
+        for target in draft.targets:
+            key = str(target.outlet_id)
+            if key in body.local_grafs:
+                target.local_graf = body.local_grafs[key]
     after = [str(t.outlet_id) for t in draft.targets if t.selected]
     if body.selected_outlet_ids is not None and before != after:
         diff["selected_outlets"] = {"from": before, "to": after}
+    if body.local_grafs:
+        for target in draft.targets:
+            key = str(target.outlet_id)
+            if key in body.local_grafs and before_grafs.get(key) != target.local_graf:
+                diff.setdefault("local_grafs", {})[key] = {
+                    "from": before_grafs.get(key, ""),
+                    "to": target.local_graf,
+                }
     return diff
 
 
@@ -164,10 +178,16 @@ def _push_to_cms(draft: Draft, *, publish: bool, actor: str) -> list[dict[str, A
 
 
 @router.get("", response_model=list[DraftListItem])
-def list_drafts(status: str | None = None, stage: str | None = None, db: Session = Depends(get_db)):
+def list_drafts(
+    status: str | None = None,
+    stage: str | None = None,
+    outlet_id: uuid.UUID | None = None,
+    db: Session = Depends(get_db),
+):
     query = db.query(Draft).options(
         selectinload(Draft.targets).selectinload(PublishTarget.outlet),
         selectinload(Draft.media),
+        selectinload(Draft.jobs),
     )
     if stage:
         statuses = statuses_for_stage(stage)
@@ -178,6 +198,10 @@ def list_drafts(status: str | None = None, stage: str | None = None, db: Session
         query = query.filter(Draft.status == status)
     else:
         query = query.filter(Draft.status.notin_(ARCHIVED_STATUSES))
+    if outlet_id:
+        query = query.filter(
+            Draft.targets.any((PublishTarget.outlet_id == outlet_id) & (PublishTarget.selected.is_(True)))
+        )
     drafts = query.order_by(Draft.created_at.desc()).all()
     return [to_list_item(d) for d in drafts]
 
@@ -217,7 +241,7 @@ def record_decision(draft_id: uuid.UUID, body: DecisionCreate, db: Session = Dep
 
     allow_spine = stage != PipelineStage.pitch.value
     copy_diff = _apply_copy_edits(draft, body, allow_spine=allow_spine)
-    outlet_diff = _apply_outlet_selection(draft, body)
+    outlet_diff = _apply_outlet_selection(db, draft, body)
     diff.update(copy_diff)
     diff.update(outlet_diff)
 
@@ -233,11 +257,14 @@ def record_decision(draft_id: uuid.UUID, body: DecisionCreate, db: Session = Dep
 
     if action == DecisionAction.go:
         draft.parked = False
-        if not (draft.spine_body or "").strip():
-            draft.spine_body = commissioned_spine(draft.headline, draft.standfirst)
-            diff["commissioned"] = True
+        jobs = enqueue_commission_jobs(db, draft)
+        diff["jobs"] = [{"id": str(j.id), "kind": j.kind, "status": j.status} for j in jobs]
+        if (draft.spine_body or "").strip():
+            fulfilled = fulfill_seeded_commission(db, draft, actor)
+            diff["commissioned"] = "seeded draft ready"
+            diff["jobs_completed"] = [j.kind for j in fulfilled]
         else:
-            diff["commissioned"] = "existing spine revealed"
+            diff["commissioned"] = "draft_article queued"
 
     if action == DecisionAction.leave:
         draft.parked = True
@@ -250,10 +277,20 @@ def record_decision(draft_id: uuid.UUID, body: DecisionCreate, db: Session = Dep
     if action == DecisionAction.no_go:
         draft.parked = False
         diff["archived"] = True
+        diff["jobs_cancelled"] = cancel_open_jobs(db, draft, reason="no-go", actor=actor)
 
     if action == DecisionAction.return_to_pitch:
         draft.parked = False
         diff["returned_to_pitch"] = True
+        diff["jobs_cancelled"] = cancel_open_jobs(db, draft, reason="returned to pitch", actor=actor)
+
+    if action == DecisionAction.advance_to_social:
+        job = enqueue_social_job(db, draft)
+        if draft.social_posts:
+            fulfilled = fulfill_seeded_commission(db, draft, actor)
+            diff["social_job"] = {"id": str(job.id), "completed": [j.kind for j in fulfilled]}
+        else:
+            diff["social_job"] = {"id": str(job.id), "status": job.status}
 
     if action in {DecisionAction.social_edit, DecisionAction.social_approve, DecisionAction.social_hold}:
         if not body.social_post_id:

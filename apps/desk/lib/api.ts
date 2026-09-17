@@ -1,4 +1,12 @@
-import type { DecisionPayload, DeskSettings, DraftDetail, DraftListItem, Pipeline } from "./types";
+import type {
+  DecisionPayload,
+  DeskSettings,
+  DraftDetail,
+  DraftListItem,
+  Outlet,
+  OutletPackage,
+  Pipeline,
+} from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -28,13 +36,19 @@ export function apiBase() {
   return API_BASE;
 }
 
-export function listDrafts(stage?: string) {
-  const query = stage ? `?stage=${encodeURIComponent(stage)}` : "";
-  return request<DraftListItem[]>(`/drafts${query}`);
+function withOutlet(path: string, outletId?: string | null) {
+  if (!outletId) return path;
+  const join = path.includes("?") ? "&" : "?";
+  return `${path}${join}outlet_id=${encodeURIComponent(outletId)}`;
 }
 
-export function getPipeline() {
-  return request<Pipeline>("/pipeline");
+export function listDrafts(stage?: string, outletId?: string | null) {
+  const query = stage ? `?stage=${encodeURIComponent(stage)}` : "";
+  return request<DraftListItem[]>(withOutlet(`/drafts${query}`, outletId));
+}
+
+export function getPipeline(outletId?: string | null) {
+  return request<Pipeline>(withOutlet("/pipeline", outletId));
 }
 
 export function getDraft(id: string) {
@@ -50,4 +64,28 @@ export function recordDecision(id: string, payload: DecisionPayload) {
 
 export function getSettings() {
   return request<DeskSettings>("/settings");
+}
+
+export function searchOutlets(params: { q?: string; region?: string; county?: string; limit?: number }) {
+  const query = new URLSearchParams();
+  if (params.q) query.set("q", params.q);
+  if (params.region) query.set("region", params.region);
+  if (params.county) query.set("county", params.county);
+  if (params.limit) query.set("limit", String(params.limit));
+  const suffix = query.toString() ? `?${query}` : "";
+  return request<Outlet[]>(`/outlets${suffix}`);
+}
+
+export function listPackages() {
+  return request<OutletPackage[]>("/outlets/packages");
+}
+
+export function outletFacets() {
+  return request<{ regions: string[]; counties: string[] }>("/outlets/facets");
+}
+
+export function suggestOutlets(draftId: string) {
+  return request<{ outlets: Outlet[]; packages: OutletPackage[] }>(
+    `/outlets/suggest?draft_id=${encodeURIComponent(draftId)}`,
+  );
 }

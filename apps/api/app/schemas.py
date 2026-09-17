@@ -18,6 +18,7 @@ class OutletOut(BaseModel):
     name: str
     slug: str
     town: str
+    county: str = ""
     region: str
     cms_kind: str
     cms_base_url: str
@@ -26,6 +27,28 @@ class OutletOut(BaseModel):
     localisation_brief: str
 
     model_config = {"from_attributes": True}
+
+
+class PackageOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    region: str
+    county: str
+    description: str
+    outlets: list[OutletOut]
+
+    model_config = {"from_attributes": True}
+
+
+class OutletFacetsOut(BaseModel):
+    regions: list[str]
+    counties: list[str]
+
+
+class OutletSuggestOut(BaseModel):
+    outlets: list[OutletOut]
+    packages: list[PackageOut]
 
 
 class MediaAssetOut(BaseModel):
@@ -93,6 +116,7 @@ class DraftListItem(BaseModel):
     auto_publish_eligible: bool
     suggested_outlet_names: list[str]
     image_label: str | None = None
+    draft_ready: bool = True
     created_at: datetime
     updated_at: datetime
 
@@ -107,17 +131,56 @@ class ConfidenceOut(BaseModel):
     notes: list[str]
 
 
+class JobOut(BaseModel):
+    id: uuid.UUID
+    draft_id: uuid.UUID
+    kind: str
+    status: str
+    payload: dict[str, Any]
+    result: dict[str, Any]
+    worker: str | None
+    error: str | None
+    claimed_at: datetime | None
+    completed_at: datetime | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class JobClaimIn(BaseModel):
+    worker: str = "grok-bot"
+
+
+class JobCompleteIn(BaseModel):
+    worker: str = "grok-bot"
+    error: str | None = None
+    headline: str | None = None
+    standfirst: str | None = None
+    spine_body: str | None = None
+    tags: list[str] | None = None
+    placeholder_label: str | None = None
+    caption: str | None = None
+    alt_text: str | None = None
+    credit: str | None = None
+    local_grafs: dict[str, str] | None = None
+    social: list[dict[str, Any]] | None = None
+    result: dict[str, Any] | None = None
+
+
 class DraftDetail(DraftListItem):
     byline: str
     source_links: list[Any]
+    geography: dict[str, Any] = Field(default_factory=dict)
     spine_body: str
     media: list[MediaAssetOut]
     social_posts: list[SocialPostOut]
     targets: list[PublishTargetOut]
     decisions: list[DecisionOut]
+    jobs: list[JobOut] = Field(default_factory=list)
     confidence: ConfidenceOut
     flags: dict[str, Any]
     is_pitch: bool = False
+    generating: bool = False
 
 
 class DecisionCreate(BaseModel):
@@ -150,7 +213,8 @@ class SettingsOut(BaseModel):
     kill_switch: bool
     wp_live: bool
     default_actor: str
-    product: str = "Deepfold Approvals Desk"
+    publisher_name: str = "Newsworld"
+    product: str = "Deepfold"
 
 
 class AuditEventOut(BaseModel):

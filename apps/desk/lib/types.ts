@@ -9,12 +9,37 @@ export type Outlet = {
   name: string;
   slug: string;
   town: string;
+  county: string;
   region: string;
   cms_kind: string;
   cms_base_url: string;
   default_selected: boolean;
   active: boolean;
   localisation_brief: string;
+};
+
+export type OutletPackage = {
+  id: string;
+  name: string;
+  slug: string;
+  region: string;
+  county: string;
+  description: string;
+  outlets: Outlet[];
+};
+
+export type Job = {
+  id: string;
+  draft_id: string;
+  kind: string;
+  status: string;
+  payload: Record<string, unknown>;
+  result: Record<string, unknown>;
+  worker: string | null;
+  error: string | null;
+  claimed_at: string | null;
+  completed_at: string | null;
+  created_at: string;
 };
 
 export type MediaAsset = {
@@ -82,6 +107,7 @@ export type DraftListItem = {
   auto_publish_eligible: boolean;
   suggested_outlet_names: string[];
   image_label: string | null;
+  draft_ready: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -89,11 +115,17 @@ export type DraftListItem = {
 export type DraftDetail = DraftListItem & {
   byline: string;
   source_links: SourceLink[];
+  geography: {
+    regions?: string[];
+    counties?: string[];
+    towns?: string[];
+  };
   spine_body: string;
   media: MediaAsset[];
   social_posts: SocialPost[];
   targets: PublishTarget[];
   decisions: Decision[];
+  jobs: Job[];
   confidence: Confidence;
   flags: {
     kill_switch: boolean;
@@ -101,6 +133,7 @@ export type DraftDetail = DraftListItem & {
     wp_live: boolean;
   };
   is_pitch: boolean;
+  generating: boolean;
 };
 
 export type DeskSettings = {
@@ -108,6 +141,7 @@ export type DeskSettings = {
   kill_switch: boolean;
   wp_live: boolean;
   default_actor: string;
+  publisher_name: string;
   product: string;
 };
 

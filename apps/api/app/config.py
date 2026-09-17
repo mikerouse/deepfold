@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     wp_live: bool = False
     wp_username: str = ""
     wp_application_password: str = ""
-    default_actor: str = "journalist@conservativepost.local"
+    default_actor: str = "journalist@newsworld.local"
+    publisher_name: str = "Newsworld"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     @property

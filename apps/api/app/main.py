@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import init_db
-from app.routers import drafts, meta, outlets
+from app.routers import drafts, jobs, meta, outlets
 from app.seed import seed_if_empty
 
 
@@ -18,7 +18,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="Deepfold Approvals Desk API",
-    description="Human-in-the-loop newsroom control panel for Conservative Post / UK local titles.",
+    description="Human-in-the-loop newsroom control panel for a multi-title publisher (titles, not a single masthead).",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -34,3 +34,4 @@ app.add_middleware(
 app.include_router(meta.router)
 app.include_router(drafts.router)
 app.include_router(outlets.router)
+app.include_router(jobs.router)

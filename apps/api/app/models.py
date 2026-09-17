@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -22,6 +22,7 @@ class Outlet(Base):
     name: Mapped[str] = mapped_column(String(255))
     slug: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     town: Mapped[str] = mapped_column(String(128), default="")
+    county: Mapped[str] = mapped_column(String(128), default="")
     region: Mapped[str] = mapped_column(String(128), default="")
     cms_kind: Mapped[str] = mapped_column(String(32), default="wordpress")
     cms_base_url: Mapped[str] = mapped_column(String(512), default="")
@@ -31,6 +32,7 @@ class Outlet(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     targets: Mapped[list[PublishTarget]] = relationship(back_populates="outlet")
+    package_memberships: Mapped[list["OutletPackageMember"]] = relationship(back_populates="outlet")
 
 
 class Draft(Base):
@@ -47,6 +49,7 @@ class Draft(Base):
     categories: Mapped[list[Any]] = mapped_column(JSON, default=list)
     tags: Mapped[list[Any]] = mapped_column(JSON, default=list)
     source_links: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    geography: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     spine_body: Mapped[str] = mapped_column(Text)
     confidence_score: Mapped[float] = mapped_column(Float, default=0.5)
     auto_draft_eligible: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -59,6 +62,7 @@ class Draft(Base):
     decisions: Mapped[list[Decision]] = relationship(back_populates="draft", cascade="all, delete-orphan")
     media: Mapped[list[MediaAsset]] = relationship(back_populates="draft", cascade="all, delete-orphan")
     social_posts: Mapped[list[SocialPost]] = relationship(back_populates="draft", cascade="all, delete-orphan")
+    jobs: Mapped[list["Job"]] = relationship(back_populates="draft", cascade="all, delete-orphan")
 
 
 class DraftVersion(Base):
@@ -139,6 +143,54 @@ class SocialPost(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     draft: Mapped[Draft] = relationship(back_populates="social_posts")
+
+
+class Job(Base):
+    __tablename__ = "jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    draft_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("drafts.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    result: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    worker: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    draft: Mapped[Draft] = relationship(back_populates="jobs")
+
+
+class OutletPackage(Base):
+    __tablename__ = "outlet_packages"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255))
+    slug: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    region: Mapped[str] = mapped_column(String(128), default="")
+    county: Mapped[str] = mapped_column(String(128), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    members: Mapped[list["OutletPackageMember"]] = relationship(
+        back_populates="package", cascade="all, delete-orphan"
+    )
+
+
+class OutletPackageMember(Base):
+    __tablename__ = "outlet_package_members"
+    __table_args__ = (UniqueConstraint("package_id", "outlet_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    package_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("outlet_packages.id"), index=True)
+    outlet_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("outlets.id"), index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    package: Mapped[OutletPackage] = relationship(back_populates="members")
+    outlet: Mapped[Outlet] = relationship(back_populates="package_memberships")
 
 
 class AuditEvent(Base):

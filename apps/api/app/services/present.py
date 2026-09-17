@@ -8,11 +8,13 @@ from app.schemas import (
     DecisionOut,
     DraftDetail,
     DraftListItem,
+    JobOut,
     MediaAssetOut,
     PublishTargetOut,
     SocialPostOut,
 )
 from app.services.confidence import score_draft
+from app.services.jobs import draft_is_ready
 from app.services.pipeline import stage_for_status
 
 
@@ -52,6 +54,7 @@ def to_list_item(draft: Draft) -> DraftListItem:
         auto_publish_eligible=draft.auto_publish_eligible,
         suggested_outlet_names=suggested_outlet_names(draft),
         image_label=None if is_pitch else featured_image_label(draft),
+        draft_ready=False if is_pitch else draft_is_ready(draft),
         created_at=draft.created_at,
         updated_at=draft.updated_at,
     )
@@ -74,15 +77,19 @@ def to_detail(draft: Draft) -> DraftDetail:
     confidence = apply_confidence(draft)
     item = to_list_item(draft)
     is_pitch = item.pipeline_stage == PipelineStage.pitch.value
+    ready = item.draft_ready
+    jobs = [JobOut.model_validate(j) for j in sorted(draft.jobs or [], key=lambda x: x.created_at, reverse=True)]
     return DraftDetail(
         **item.model_dump(),
         byline=draft.byline,
         source_links=draft.source_links or [],
-        spine_body="" if is_pitch else draft.spine_body,
+        geography=draft.geography or {},
+        spine_body="" if is_pitch or not ready else draft.spine_body,
         media=[] if is_pitch else [MediaAssetOut.model_validate(m) for m in draft.media],
         social_posts=[] if is_pitch else [SocialPostOut.model_validate(s) for s in draft.social_posts],
         targets=[PublishTargetOut.model_validate(t) for t in draft.targets],
         decisions=[DecisionOut.model_validate(d) for d in sorted(draft.decisions, key=lambda x: x.created_at, reverse=True)],
+        jobs=[] if is_pitch else jobs,
         confidence=ConfidenceOut(**confidence),
         flags={
             "kill_switch": settings.kill_switch,
@@ -90,4 +97,5 @@ def to_detail(draft: Draft) -> DraftDetail:
             "wp_live": settings.wp_live,
         },
         is_pitch=is_pitch,
+        generating=(not is_pitch) and (not ready),
     )

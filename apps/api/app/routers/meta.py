@@ -1,9 +1,11 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import engine, get_db
-from app.models import AuditEvent, Draft
+from app.models import AuditEvent, Draft, PublishTarget
 from app.schemas import AuditEventOut, HealthOut, PipelineOut, SettingsOut, StageCount
 from app.services.pipeline import STAGE_ORDER, stage_for_status, stage_payload
 
@@ -29,13 +31,20 @@ def get_settings():
         kill_switch=settings.kill_switch,
         wp_live=settings.wp_live,
         default_actor=settings.default_actor,
+        publisher_name=settings.publisher_name,
+        product="Deepfold",
     )
 
 
 @router.get("/pipeline", response_model=PipelineOut)
-def get_pipeline(db: Session = Depends(get_db)):
+def get_pipeline(outlet_id: UUID | None = None, db: Session = Depends(get_db)):
     counts = {stage: 0 for stage in STAGE_ORDER}
-    for status, in db.query(Draft.status).all():
+    query = db.query(Draft)
+    if outlet_id:
+        query = query.filter(
+            Draft.targets.any((PublishTarget.outlet_id == outlet_id) & (PublishTarget.selected.is_(True)))
+        )
+    for status, in query.with_entities(Draft.status).all():
         stage = stage_for_status(status)
         if stage in counts:
             counts[stage] += 1

@@ -87,3 +87,18 @@ HARD_BLOCK_VERIFICATIONS = {
     VerificationStatus.caution.value,
     VerificationStatus.defamation_sensitive.value,
 }
+
+
+class JobKind(str, enum.Enum):
+    draft_article = "draft_article"
+    featured_image = "featured_image"
+    localize_outlets = "localize_outlets"
+    social_stubs = "social_stubs"
+
+
+class JobStatus(str, enum.Enum):
+    queued = "queued"
+    claimed = "claimed"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
