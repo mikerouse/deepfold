@@ -129,6 +129,8 @@ class DraftListItem(BaseModel):
     selected_outlet_ids: list[uuid.UUID] = Field(default_factory=list)
     image_label: str | None = None
     draft_ready: bool = True
+    worker_status: str | None = None
+    worker_labels: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -182,6 +184,15 @@ class JobCompleteIn(BaseModel):
     result: dict[str, Any] | None = None
 
 
+class DraftVersionOut(BaseModel):
+    version_number: int
+    headline: str
+    created_by: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class DraftDetail(DraftListItem):
     byline: str
     source_links: list[Any]
@@ -192,6 +203,7 @@ class DraftDetail(DraftListItem):
     targets: list[PublishTargetOut]
     decisions: list[DecisionOut]
     jobs: list[JobOut] = Field(default_factory=list)
+    versions: list[DraftVersionOut] = Field(default_factory=list)
     confidence: ConfidenceOut
     flags: dict[str, Any]
     is_pitch: bool = False
@@ -230,6 +242,14 @@ class SettingsOut(BaseModel):
     default_actor: str
     publisher_name: str = "Newsworld"
     product: str = "Deepfold"
+    demo_instant_fulfill: bool = False
+    demo_grok_worker: bool = False
+
+
+class DemoTickOut(BaseModel):
+    ok: bool
+    simulating: str = "Grok Bot (demo worker, not an LLM call)"
+    job: JobOut | None = None
 
 
 class AuditEventOut(BaseModel):

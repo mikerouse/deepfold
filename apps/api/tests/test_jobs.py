@@ -50,9 +50,32 @@ def test_suggest_uses_pitch_geography(client):
     assert any("Worcestershire" in name for name in names)
 
 
-def test_go_completes_seeded_draft_job(client):
+def test_go_leaves_seeded_jobs_queued_by_default(client):
     queued_before = client.get("/jobs?status=queued").json()
     assert queued_before == []
+    response = client.post(f"/drafts/{CARE_ID}/decisions", json={"action": "go"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["pipeline_stage"] == "drafting"
+    assert body["draft_ready"] is False
+    assert body["generating"] is True
+    assert body["spine_body"] == ""
+    assert body["worker_status"] == "Queued for drafting"
+    assert "Queued for drafting" in body["worker_labels"]
+    assert "Queued for image" in body["worker_labels"]
+    kinds = {job["kind"]: job["status"] for job in body["jobs"]}
+    assert kinds["draft_article"] == "queued"
+    assert kinds["featured_image"] == "queued"
+    assert kinds["localize_outlets"] == "queued"
+    listed = client.get("/drafts?stage=drafting").json()
+    care = next(row for row in listed if row["id"] == CARE_ID)
+    assert care["worker_status"] == "Queued for drafting"
+
+
+def test_go_instant_fulfill_when_flagged(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "demo_instant_fulfill", True)
     response = client.post(f"/drafts/{CARE_ID}/decisions", json={"action": "go"})
     assert response.status_code == 200
     body = response.json()
@@ -61,11 +84,22 @@ def test_go_completes_seeded_draft_job(client):
     assert body["generating"] is False
     assert "£40" in body["spine_body"] or "social care" in body["spine_body"].lower()
     assert body["media"]
-    assert body["tags"]
     kinds = {job["kind"]: job["status"] for job in body["jobs"]}
     assert kinds["draft_article"] == "completed"
     assert kinds["featured_image"] == "completed"
     assert kinds["localize_outlets"] == "completed"
+
+
+def test_worker_status_maps_claimed_drafting(client):
+    client.post(f"/drafts/{CARE_ID}/decisions", json={"action": "go"})
+    jobs = client.get(f"/jobs?draft_id={CARE_ID}&kind=draft_article").json()
+    claimed = client.post(f"/jobs/{jobs[0]['id']}/claim", json={"worker": "grok-bot"})
+    assert claimed.status_code == 200
+    draft = client.get(f"/drafts/{CARE_ID}").json()
+    assert draft["worker_status"] == "Drafting…"
+    assert draft["generating"] is True
+    listed = next(row for row in client.get("/drafts").json() if row["id"] == CARE_ID)
+    assert listed["worker_status"] == "Drafting…"
 
 
 def test_go_without_spine_queues_draft_job(client):
@@ -108,6 +142,59 @@ def test_go_without_spine_queues_draft_job(client):
     draft = client.get(f"/drafts/{CARE_ID}").json()
     assert draft["draft_ready"] is True
     assert "forty million" in draft["spine_body"]
+    assert draft["worker_status"] == "Queued for image"
+
+
+def test_demo_tick_disabled_by_default(client):
+    response = client.post("/jobs/demo-tick")
+    assert response.status_code == 403
+
+
+def test_demo_tick_claims_and_completes_stub(client, monkeypatch):
+    from uuid import UUID
+
+    from app.config import settings
+    from app.db import SessionLocal
+    from app.models import Draft
+
+    monkeypatch.setattr(settings, "demo_grok_worker", True)
+    monkeypatch.setattr(settings, "demo_grok_worker_delay_seconds", 0)
+
+    db = SessionLocal()
+    try:
+        draft = db.get(Draft, UUID(CARE_ID))
+        draft.spine_body = ""
+        for asset in list(draft.media):
+            db.delete(asset)
+        db.commit()
+    finally:
+        db.close()
+
+    go = client.post(f"/drafts/{CARE_ID}/decisions", json={"action": "go"})
+    assert go.status_code == 200
+    assert go.json()["generating"] is True
+    assert go.json()["spine_body"] == ""
+
+    first = client.post("/jobs/demo-tick")
+    assert first.status_code == 200
+    payload = first.json()
+    assert payload["ok"] is True
+    assert "not an LLM" in payload["simulating"]
+    assert payload["job"]["status"] == "completed"
+    assert payload["job"]["worker"] == "demo-grok-bot"
+    assert payload["job"]["kind"] == "draft_article"
+
+    detail = client.get(f"/drafts/{CARE_ID}").json()
+    assert detail["generating"] is False
+    assert detail["spine_body"].strip()
+    assert detail["worker_status"] == "Queued for image"
+
+    second = client.post("/jobs/demo-tick")
+    assert second.json()["job"]["kind"] == "featured_image"
+    plate = client.get(f"/drafts/{CARE_ID}").json()
+    featured = next(m for m in plate["media"] if m["role"] == "featured")
+    assert featured["url"]
+    assert featured["prompt_version"] == "featured_image_v1"
 
 
 def test_add_title_creates_publish_target(client):

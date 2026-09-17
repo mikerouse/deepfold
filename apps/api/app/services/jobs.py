@@ -36,6 +36,17 @@ def pending_article_job(draft: Draft) -> Job | None:
     return None
 
 
+def article_job_completed(draft: Draft) -> bool:
+    return any(
+        job.kind == JobKind.draft_article.value and job.status == JobStatus.completed.value
+        for job in (draft.jobs or [])
+    )
+
+
+def open_jobs(draft: Draft) -> list[Job]:
+    return [job for job in (draft.jobs or []) if job.status in OPEN_STATUSES]
+
+
 def draft_is_ready(draft: Draft) -> bool:
     if pending_article_job(draft):
         return False

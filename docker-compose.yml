@@ -40,6 +40,8 @@ services:
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       DEFAULT_ACTOR: journalist@newsworld.local
       PUBLISHER_NAME: Newsworld
+      DEMO_INSTANT_FULFILL: "false"
+      DEMO_GROK_WORKER: "false"
     depends_on:
       db:
         condition: service_healthy

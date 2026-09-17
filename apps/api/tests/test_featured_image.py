@@ -21,7 +21,7 @@ def test_go_featured_image_payload_is_fully_specified(client):
     body = client.post(f"/drafts/{CARE_ID}/decisions", json={"action": "go"}).json()
     job = next(j for j in body["jobs"] if j["kind"] == "featured_image")
     payload = job["payload"]
-    assert job["status"] == "completed"
+    assert job["status"] == "queued"
     assert payload["brief_version"] == "featured_image_v1"
     assert payload["documentary_safe"] is True
     assert "civic" in payload["story_specific_scene"].lower() or "warwickshire" in payload["story_specific_scene"].lower()

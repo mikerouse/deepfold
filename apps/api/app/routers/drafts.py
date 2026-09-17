@@ -11,6 +11,7 @@ from app.db import get_db
 from app.enums import (
     HARD_BLOCK_VERIFICATIONS,
     DecisionAction,
+    JobKind,
     PipelineStage,
     PublishTargetStatus,
     SocialStatus,
@@ -21,6 +22,7 @@ from app.services.audit import write_audit
 from app.services.jobs import (
     cancel_open_jobs,
     enqueue_commission_jobs,
+    enqueue_job,
     enqueue_social_job,
     fulfill_seeded_commission,
 )
@@ -292,12 +294,24 @@ def record_decision(draft_id: uuid.UUID, body: DecisionCreate, db: Session = Dep
         draft.parked = False
         jobs = enqueue_commission_jobs(db, draft)
         diff["jobs"] = [{"id": str(j.id), "kind": j.kind, "status": j.status} for j in jobs]
-        if (draft.spine_body or "").strip():
+        if settings.demo_instant_fulfill:
             fulfilled = fulfill_seeded_commission(db, draft, actor)
-            diff["commissioned"] = "seeded draft ready"
-            diff["jobs_completed"] = [j.kind for j in fulfilled]
+            if fulfilled:
+                diff["commissioned"] = "seeded draft ready"
+                diff["jobs_completed"] = [j.kind for j in fulfilled]
+                diff["demo_instant_fulfill"] = True
+            else:
+                diff["commissioned"] = "jobs queued (no seed to fulfill)"
         else:
-            diff["commissioned"] = "draft_article queued"
+            diff["commissioned"] = "jobs queued for Grok Bot"
+
+    if action == DecisionAction.request_rewrite:
+        job = enqueue_job(db, draft, JobKind.draft_article.value)
+        diff["rewrite_job"] = {"id": str(job.id), "kind": job.kind, "status": job.status}
+
+    if action == DecisionAction.queue_featured_image:
+        job = enqueue_job(db, draft, JobKind.featured_image.value)
+        diff["image_job"] = {"id": str(job.id), "kind": job.kind, "status": job.status}
 
     if action == DecisionAction.leave:
         draft.parked = True
@@ -319,7 +333,7 @@ def record_decision(draft_id: uuid.UUID, body: DecisionCreate, db: Session = Dep
 
     if action == DecisionAction.advance_to_social:
         job = enqueue_social_job(db, draft)
-        if draft.social_posts:
+        if settings.demo_instant_fulfill and draft.social_posts:
             fulfilled = fulfill_seeded_commission(db, draft, actor)
             diff["social_job"] = {"id": str(job.id), "completed": [j.kind for j in fulfilled]}
         else:

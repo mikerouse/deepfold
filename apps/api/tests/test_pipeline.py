@@ -40,8 +40,11 @@ def test_go_commissions_draft(client):
     assert body["status"] == "drafting"
     assert body["pipeline_stage"] == "drafting"
     assert body["is_pitch"] is False
-    assert "social care" in body["spine_body"].lower() or "£40" in body["spine_body"]
-    assert body["media"]
+    assert body["generating"] is True
+    assert body["spine_body"] == ""
+    kinds = {job["kind"]: job["status"] for job in body["jobs"]}
+    assert kinds["draft_article"] == "queued"
+    assert kinds["featured_image"] == "queued"
     counts = {row["id"]: row["count"] for row in client.get("/pipeline").json()["stages"]}
     assert counts["pitch"] == 0
     assert counts["drafting"] == 2
@@ -89,6 +92,17 @@ def test_return_to_pitch_from_drafting(client):
 
 
 def test_go_does_not_wipe_spine(client):
+    from uuid import UUID
+
+    from app.db import SessionLocal
+    from app.models import Draft
+
     client.post(f"/drafts/{CARE_ID}/decisions", json={"action": "go", "spine_body": ""})
     body = client.get(f"/drafts/{CARE_ID}").json()
-    assert body["spine_body"].strip()
+    assert body["spine_body"] == ""
+    db = SessionLocal()
+    try:
+        stored = db.get(Draft, UUID(CARE_ID))
+        assert stored.spine_body.strip()
+    finally:
+        db.close()

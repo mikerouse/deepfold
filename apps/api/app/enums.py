@@ -47,6 +47,8 @@ class DecisionAction(str, enum.Enum):
     reject = "reject"
     hold = "hold"
     outlet_override = "outlet_override"
+    request_rewrite = "request_rewrite"
+    queue_featured_image = "queue_featured_image"
     social_edit = "social_edit"
     social_approve = "social_approve"
     social_hold = "social_hold"
