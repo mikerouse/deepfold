@@ -575,6 +575,8 @@ input:focus-visible,
   background: var(--ink);
   color: var(--paper-2);
   padding: 0.55rem 1.35rem;
+  min-width: 5.5rem;
+  text-align: center;
 }
 
 .btn.primary:hover:not(:disabled) {
