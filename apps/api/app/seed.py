@@ -5,8 +5,18 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal, init_db
-from app.enums import MediaRole, SocialPlatform, SocialStatus, VerificationStatus
-from app.models import Draft, MediaAsset, Outlet, PublishTarget, SocialPost
+from app.enums import JobKind, JobStatus, MediaRole, SocialPlatform, SocialStatus, VerificationStatus
+from app.models import (
+    Draft,
+    DraftVersion,
+    Job,
+    MediaAsset,
+    Outlet,
+    OutletPackage,
+    OutletPackageMember,
+    PublishTarget,
+    SocialPost,
+)
 from app.services.audit import write_audit
 from app.services.pipeline import SEED_STAGE_BY_SLUG
 from app.services.present import apply_confidence
@@ -17,6 +27,7 @@ OUTLET_SPECS = [
         "name": "Conservative Post",
         "slug": "conservative-post",
         "town": "Westminster",
+        "county": "",
         "region": "National",
         "cms_kind": "wordpress",
         "cms_base_url": "https://www.conservativepost.co.uk",
@@ -28,7 +39,8 @@ OUTLET_SPECS = [
         "name": "Nuneaton Desk",
         "slug": "nuneaton-desk",
         "town": "Nuneaton",
-        "region": "Warwickshire",
+        "county": "Warwickshire",
+        "region": "West Midlands",
         "cms_kind": "wordpress",
         "cms_base_url": "https://nuneaton.example.invalid",
         "default_selected": True,
@@ -39,7 +51,8 @@ OUTLET_SPECS = [
         "name": "Hinckley Desk",
         "slug": "hinckley-desk",
         "town": "Hinckley",
-        "region": "Leicestershire",
+        "county": "Leicestershire",
+        "region": "East Midlands",
         "cms_kind": "wordpress",
         "cms_base_url": "https://hinckley.example.invalid",
         "default_selected": False,
@@ -50,12 +63,121 @@ OUTLET_SPECS = [
         "name": "Warwickshire Times",
         "slug": "warwickshire-times",
         "town": "Warwick",
-        "region": "Warwickshire",
+        "county": "Warwickshire",
+        "region": "West Midlands",
         "cms_kind": "wordpress",
         "cms_base_url": "https://warwickshire.example.invalid",
         "default_selected": False,
         "localisation_brief": "County-wide; Shire Hall and county cabinet, not a single borough.",
     },
+    {
+        "id": uuid.UUID("55555555-5555-4555-8555-555555555555"),
+        "name": "Redditch News",
+        "slug": "redditch-news",
+        "town": "Redditch",
+        "county": "Worcestershire",
+        "region": "West Midlands",
+        "cms_kind": "wordpress",
+        "cms_base_url": "https://redditch.example.invalid",
+        "default_selected": False,
+        "localisation_brief": "Borough and new-town wards; Kingfisher, Church Hill, Matchborough.",
+    },
+    {
+        "id": uuid.UUID("66666666-6666-4666-8666-666666666666"),
+        "name": "Bromsgrove Standard",
+        "slug": "bromsgrove-standard",
+        "town": "Bromsgrove",
+        "county": "Worcestershire",
+        "region": "West Midlands",
+        "cms_kind": "wordpress",
+        "cms_base_url": "https://bromsgrove.example.invalid",
+        "default_selected": False,
+        "localisation_brief": "Market town; name the High Street, the A38, and district council.",
+    },
+    {
+        "id": uuid.UUID("77777777-7777-4777-8777-777777777777"),
+        "name": "Worcester Chronicle",
+        "slug": "worcester-chronicle",
+        "town": "Worcester",
+        "county": "Worcestershire",
+        "region": "West Midlands",
+        "cms_kind": "wordpress",
+        "cms_base_url": "https://worcester.example.invalid",
+        "default_selected": False,
+        "localisation_brief": "Cathedral city and county hall; Foregate Street, the Severn, shire members.",
+    },
+    {
+        "id": uuid.UUID("88888888-8888-4888-8888-888888888888"),
+        "name": "Coventry Desk",
+        "slug": "coventry-desk",
+        "town": "Coventry",
+        "county": "West Midlands",
+        "region": "West Midlands",
+        "cms_kind": "wordpress",
+        "cms_base_url": "https://coventry.example.invalid",
+        "default_selected": False,
+        "localisation_brief": "City: rings of the ring road, Council House, and the A444 into Nuneaton.",
+    },
+    {
+        "id": uuid.UUID("99999999-9999-4999-8999-999999999999"),
+        "name": "Rugby Observer",
+        "slug": "rugby-observer",
+        "town": "Rugby",
+        "county": "Warwickshire",
+        "region": "West Midlands",
+        "cms_kind": "wordpress",
+        "cms_base_url": "https://rugby.example.invalid",
+        "default_selected": False,
+        "localisation_brief": "Town and borough; Clifton, the station, and county members who sit in Rugby.",
+    },
+    {
+        "id": uuid.UUID("01010101-0101-4101-8101-010101010101"),
+        "name": "Stratford Herald",
+        "slug": "stratford-herald",
+        "town": "Stratford-upon-Avon",
+        "county": "Warwickshire",
+        "region": "West Midlands",
+        "cms_kind": "wordpress",
+        "cms_base_url": "https://stratford.example.invalid",
+        "default_selected": False,
+        "localisation_brief": "District: riverside, district council, and the south-Warwickshire towns.",
+    },
+    {
+        "id": uuid.UUID("02020202-0202-4202-8202-020202020202"),
+        "name": "Leicester Desk",
+        "slug": "leicester-desk",
+        "town": "Leicester",
+        "county": "Leicestershire",
+        "region": "East Midlands",
+        "cms_kind": "wordpress",
+        "cms_base_url": "https://leicester.example.invalid",
+        "default_selected": False,
+        "localisation_brief": "City and county: name the A47 corridor when a Hinckley story reaches the city.",
+    },
+    {
+        "id": uuid.UUID("03030303-0303-4303-8303-030303030303"),
+        "name": "Birmingham Desk",
+        "slug": "birmingham-desk",
+        "town": "Birmingham",
+        "county": "West Midlands",
+        "region": "West Midlands",
+        "cms_kind": "wordpress",
+        "cms_base_url": "https://birmingham.example.invalid",
+        "default_selected": False,
+        "localisation_brief": "Regional city brief — only when the Midlands story has a Birmingham consequence.",
+    },
+]
+
+PACKAGE_SPECS = [
+    {
+        "id": uuid.UUID("cccc1111-cccc-4111-8111-ccccccccc111"),
+        "name": "Worcestershire — Redditch / Bromsgrove / Worcester",
+        "slug": "worcestershire-towns",
+        "region": "West Midlands",
+        "county": "Worcestershire",
+        "description": "The three Worcestershire titles. Add as a package; do not tick a thousand boxes.",
+        "outlet_slugs": ["redditch-news", "bromsgrove-standard", "worcester-chronicle"],
+    }
 ]
 
 
@@ -117,9 +239,9 @@ def seed_if_empty() -> None:
     try:
         if db.query(Outlet).count() > 0:
             _migrate_legacy_pipeline(db)
-            db.commit()
-            return
-        _seed(db)
+        else:
+            _seed(db)
+        _ensure_demo_scale(db)
         db.commit()
     finally:
         db.close()
@@ -136,13 +258,110 @@ def _migrate_legacy_pipeline(db: Session) -> None:
             draft.parked = False
 
 
-def _seed(db: Session) -> None:
+def _upsert_outlets(db: Session) -> dict[str, Outlet]:
+    existing = {o.slug: o for o in db.query(Outlet).all()}
     outlets: dict[str, Outlet] = {}
     for spec in OUTLET_SPECS:
-        outlet = Outlet(**spec)
-        db.add(outlet)
+        outlet = existing.get(spec["slug"])
+        if outlet is None:
+            outlet = Outlet(**spec)
+            db.add(outlet)
+        else:
+            for key, value in spec.items():
+                if key == "id":
+                    continue
+                setattr(outlet, key, value)
         outlets[spec["slug"]] = outlet
     db.flush()
+    return outlets
+
+
+def _upsert_packages(db: Session, outlets: dict[str, Outlet]) -> None:
+    existing = {p.slug: p for p in db.query(OutletPackage).all()}
+    for spec in PACKAGE_SPECS:
+        package = existing.get(spec["slug"])
+        if package is None:
+            package = OutletPackage(
+                id=spec["id"],
+                name=spec["name"],
+                slug=spec["slug"],
+                region=spec["region"],
+                county=spec["county"],
+                description=spec["description"],
+            )
+            db.add(package)
+            db.flush()
+        else:
+            package.name = spec["name"]
+            package.region = spec["region"]
+            package.county = spec["county"]
+            package.description = spec["description"]
+        have = {m.outlet_id for m in package.members}
+        for order, slug in enumerate(spec["outlet_slugs"]):
+            outlet = outlets[slug]
+            if outlet.id in have:
+                continue
+            db.add(
+                OutletPackageMember(
+                    package_id=package.id,
+                    outlet_id=outlet.id,
+                    sort_order=order,
+                )
+            )
+    db.flush()
+
+
+def _seed_completed_jobs(db: Session, draft: Draft) -> None:
+    if draft.status == "pitch":
+        return
+    existing = (
+        db.query(Job)
+        .filter(Job.draft_id == draft.id, Job.kind == JobKind.draft_article.value)
+        .count()
+    )
+    if existing:
+        return
+    kinds = [
+        (JobKind.draft_article.value, {"spine_body": "seeded"}),
+        (JobKind.featured_image.value, {"media": "seeded"}),
+        (JobKind.localize_outlets.value, {"local_grafs": "seeded"}),
+    ]
+    for kind, applied in kinds:
+        db.add(
+            Job(
+                draft_id=draft.id,
+                kind=kind,
+                status=JobStatus.completed.value,
+                worker="system",
+                payload={"headline": draft.headline, "slug": draft.slug},
+                result={"applied": applied, "demo": True},
+            )
+        )
+    if not draft.versions:
+        db.add(
+            DraftVersion(
+                draft_id=draft.id,
+                version_number=1,
+                headline=draft.headline,
+                spine_body=draft.spine_body,
+                snapshot={"headline": draft.headline, "spine_body": draft.spine_body, "status": draft.status},
+                created_by="system",
+            )
+        )
+
+
+def _ensure_demo_scale(db: Session) -> None:
+    outlets = _upsert_outlets(db)
+    _upsert_packages(db, outlets)
+    for draft in db.query(Draft).all():
+        if not draft.geography:
+            draft.geography = {}
+        _seed_completed_jobs(db, draft)
+
+
+def _seed(db: Session) -> None:
+    outlets = _upsert_outlets(db)
+    _upsert_packages(db, outlets)
 
     drafts = [
         {
@@ -167,6 +386,11 @@ def _seed(db: Session) -> None:
             ],
             "spine_body": _body_care(),
             "status": "pitch",
+            "geography": {
+                "regions": ["Midlands", "West Midlands"],
+                "counties": ["Warwickshire", "Leicestershire"],
+                "towns": ["Nuneaton", "Hinckley", "Warwick"],
+            },
             "outlets": {
                 "conservative-post": "Nationally this is another Midlands shire being asked to absorb a care market Whitehall still prices as if every town had London’s tax base.",
                 "nuneaton-desk": "In Nuneaton, members will be asked what a county-wide savings line means for the Borough’s own leisure and homelessness budgets — the Town Hall cannot wait for Shire Hall’s March meeting.",
@@ -207,6 +431,11 @@ def _seed(db: Session) -> None:
             ],
             "spine_body": _body_burglary(),
             "status": "drafting",
+            "geography": {
+                "regions": ["West Midlands"],
+                "counties": ["Warwickshire"],
+                "towns": ["Nuneaton", "Camp Hill"],
+            },
             "outlets": {
                 "nuneaton-desk": "Camp Hill will read this as a street-level story: which end of the estate, which van, and whether the “third this month” claim survives a check against recorded crime.",
                 "conservative-post": "Carry only if the desk is satisfied the public-appeal element is new; do not inflate a single force statement into a crimewave.",
@@ -250,6 +479,11 @@ def _seed(db: Session) -> None:
             ],
             "spine_body": _body_lobbying(),
             "status": "checking",
+            "geography": {
+                "regions": ["Midlands", "West Midlands"],
+                "counties": ["Warwickshire"],
+                "towns": ["Warwick"],
+            },
             "outlets": {
                 "conservative-post": "National frame is standards in public life, not a named smear. If we cannot evidence the alleged remarks, we do not print them.",
                 "warwickshire-times": "County readers need the application named only if the planning reference is already public; do not identify a private individual beyond their public office without the lawyer.",
@@ -293,6 +527,11 @@ def _seed(db: Session) -> None:
             ],
             "spine_body": _body_roads(),
             "status": "checking",
+            "geography": {
+                "regions": ["East Midlands", "Midlands"],
+                "counties": ["Leicestershire"],
+                "towns": ["Hinckley"],
+            },
             "outlets": {
                 "hinckley-desk": "Name the junction residents will actually sit in and the residential rat-runs the county has already asked drivers to avoid.",
                 "conservative-post": "A short Midlands transport brief is enough nationally — dates, hours, and that daytime traffic still runs.",
@@ -328,6 +567,7 @@ def _seed(db: Session) -> None:
             categories=spec["categories"],
             tags=spec["tags"],
             source_links=spec["source_links"],
+            geography=spec.get("geography") or {},
             spine_body=spec["spine_body"],
             status=spec["status"],
             parked=False,
@@ -356,6 +596,7 @@ def _seed(db: Session) -> None:
                 )
             )
         apply_confidence(draft)
+        _seed_completed_jobs(db, draft)
         write_audit(
             db,
             entity_type="draft",

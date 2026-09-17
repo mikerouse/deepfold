@@ -6,9 +6,12 @@ import type {
   DeskSettings,
   DraftDetail,
   DraftListItem,
+  Outlet,
   PipelineStage,
   SocialPost,
 } from "../lib/types";
+import FocusTitles from "./FocusTitles";
+import TitlePicker from "./TitlePicker";
 
 type ReasonMode = "reject" | "request_changes" | "no_go" | null;
 
@@ -41,6 +44,7 @@ function actorLabel(settings: DeskSettings | null) {
 function rowMarkers(item: DraftListItem, stage: string) {
   const marks: { text: string; tone?: string }[] = [];
   if (item.parked) marks.push({ text: "Left", tone: "left" });
+  if (stage === "drafting" && !item.draft_ready) marks.push({ text: "Generating" });
   if (item.status === "changes_requested") marks.push({ text: "Changes", tone: "changes_requested" });
   if (item.status === "held") marks.push({ text: "Held", tone: "held" });
   if (stage !== "pitch" && item.verification_status !== "verified") {
@@ -60,6 +64,7 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
   const [queue, setQueue] = useState<DraftListItem[]>([]);
   const [draft, setDraft] = useState<DraftDetail | null>(null);
   const [settings, setSettings] = useState<DeskSettings | null>(null);
+  const [focus, setFocus] = useState<Outlet | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [headline, setHeadline] = useState("");
@@ -67,6 +72,7 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
   const [spine, setSpine] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [grafs, setGrafs] = useState<Record<string, string>>({});
+  const [extras, setExtras] = useState<Outlet[]>([]);
   const [socialEdits, setSocialEdits] = useState<Record<string, string>>({});
   const [reasonMode, setReasonMode] = useState<ReasonMode>(null);
   const [reason, setReason] = useState("");
@@ -75,9 +81,10 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
 
   const currentStage = stages.find((s) => s.id === stage);
   const showRail = Boolean(draft) && stage !== "pitch";
+  const generating = Boolean(draft && (draft.generating || (stage === "drafting" && !draft.draft_ready)));
 
-  async function refresh(nextStage = stage, selectId?: string) {
-    const [rows, pipe] = await Promise.all([listDrafts(nextStage), getPipeline()]);
+  async function refresh(nextStage = stage, selectId?: string, focusId = focus?.id) {
+    const [rows, pipe] = await Promise.all([listDrafts(nextStage, focusId), getPipeline(focusId)]);
     setQueue(rows);
     setStages(pipe.stages);
     setStage(nextStage);
@@ -98,6 +105,7 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
     setSpine(detail.spine_body);
     setSelected(Object.fromEntries(detail.targets.map((t) => [t.outlet.id, t.selected])));
     setGrafs(Object.fromEntries(detail.targets.map((t) => [t.outlet.id, t.local_graf])));
+    setExtras([]);
     setSocialEdits(Object.fromEntries(detail.social_posts.map((s) => [s.id, socialCopy(s)])));
   }
 
@@ -124,8 +132,9 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
   const showsBody = stage === "drafting" || stage === "checking" || stage === "publication";
   const showsOutlets = stage === "drafting" || stage === "checking" || stage === "publication";
   const showsSocial = stage === "social";
-  const showsImage = stage === "drafting" || stage === "checking";
+  const showsImage = (stage === "drafting" || stage === "checking") && !generating;
   const selectedOutlets = draft?.targets.filter((t) => t.selected) || [];
+  const publisher = settings?.publisher_name || "Newsworld";
 
   async function run(action: string, extra?: Record<string, unknown>) {
     if (!draft) return;
@@ -140,7 +149,7 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
         local_grafs: grafs,
         ...extra,
       };
-      if (showsBody) payload.spine_body = spine;
+      if (showsBody && !generating) payload.spine_body = spine;
       const next = await recordDecision(draft.id, payload as Parameters<typeof recordDecision>[1]);
       const followStage = STAGE_AFTER_ACTION[action] || next.pipeline_stage || stage;
       if (action === "go") setNotice("Commissioned. The article is now in Drafting.");
@@ -176,6 +185,17 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
     void run(action, { reason: text });
   }
 
+  function rememberOutlet(outlet: Outlet) {
+    setExtras((prev) => (prev.some((row) => row.id === outlet.id) ? prev : [...prev, outlet]));
+  }
+
+  async function changeFocus(outlet: Outlet | null) {
+    setFocus(outlet);
+    setNotice(null);
+    setError(null);
+    await refresh(stage, draft?.id, outlet?.id);
+  }
+
   const reasonCopy = {
     no_go: {
       title: "No-go this pitch?",
@@ -199,15 +219,17 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
     draft && draft.verification_status !== "verified" && stage !== "pitch"
       ? draft.verification_status.replaceAll("_", " ")
       : null;
+  const featured = draft?.media.find((m) => m.role === "featured") || draft?.media[0];
 
   return (
     <div className={`desk stage-${stage}${showRail ? " has-rail" : ""}`}>
       <header className="mast">
         <div className="mast-brand">
-          <p className="kicker">Conservative Post</p>
+          <p className="kicker">{publisher}</p>
           <h1>Deepfold</h1>
         </div>
         <dl className="mast-meta">
+          <FocusTitles focus={focus} onChange={(outlet) => void changeFocus(outlet)} />
           <div>
             <dt>Desk</dt>
             <dd>{actorLabel(settings)}</dd>
@@ -309,7 +331,29 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
             )}
             {draft.parked ? <p className="byline">Left on the spike</p> : null}
             {notice ? <p className="quiet-banner">{notice}</p> : null}
-            {showsBody ? (
+            {showsBody && draft.tags.length > 0 && !generating ? (
+              <p className="tag-line">{draft.tags.join(" · ")}</p>
+            ) : null}
+            {showsImage && featured ? (
+              <figure className="well-plate">
+                <div className="plate" title={featured.alt_text}>{featured.placeholder_label}</div>
+                <figcaption className="caption">
+                  {featured.caption} · {featured.credit}
+                  {featured.documentary_incident ? " · Documentary (must be real)" : ""}
+                </figcaption>
+              </figure>
+            ) : null}
+            {generating ? (
+              <div className="generating" aria-live="polite">
+                <p className="quiet-banner">Draft generating… Grok Bot has the job. Credits sit on that side; this desk only stores the result.</p>
+                <div className="skeleton-line" />
+                <div className="skeleton-line" />
+                <div className="skeleton-line short" />
+                <div className="skeleton-line" />
+                <div className="skeleton-line short" />
+              </div>
+            ) : null}
+            {showsBody && !generating ? (
               <textarea className="body-input" value={spine} onChange={(e) => setSpine(e.target.value)} rows={16} />
             ) : null}
             <h2 className="section-label">Sources</h2>
@@ -323,8 +367,8 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
             </ul>
             {stage === "pitch" ? (
               <>
-                <h2 className="section-label">Suggested outlets</h2>
-                <p className="outlet-line">{selectedOutlets.map((t) => t.outlet.name).join(", ") || "None selected"}</p>
+                <h2 className="section-label">Suggested titles</h2>
+                <p className="outlet-line">{selectedOutlets.map((t) => t.outlet.name).join(" · ") || "None selected"}</p>
               </>
             ) : null}
           </div>
@@ -351,58 +395,20 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
               </p>
             </section>
           ) : null}
-          {showsImage ? (
-            <section>
-              <h2>Featured image</h2>
-              {draft!.media.map((m) => (
-                <figure key={m.id}>
-                  <div className="plate" title={m.alt_text}>{m.placeholder_label}</div>
-                  <figcaption className="caption">
-                    {m.caption} · {m.credit}
-                    {m.documentary_incident ? " · Documentary (must be real)" : ""}
-                  </figcaption>
-                </figure>
-              ))}
-            </section>
-          ) : null}
           {showsOutlets ? (
-            <section>
-              <h2>{stage === "publication" ? "CMS targets" : "Target outlets"}</h2>
-              {draft!.targets.map((t) => (
-                <label className="outlet" key={t.id}>
-                  <header>
-                    <input
-                      type="checkbox"
-                      checked={!!selected[t.outlet.id]}
-                      onChange={(e) => setSelected((prev) => ({ ...prev, [t.outlet.id]: e.target.checked }))}
-                    />
-                    <strong>{t.outlet.name}</strong>
-                  </header>
-                  {stage === "publication" ? (
-                    <p className="notes">
-                      CMS {t.cms_status}
-                      {t.remote_post_id ? ` · ${t.remote_post_id}` : ""}
-                      {t.last_error ? ` · ${t.last_error}` : ""}
-                    </p>
-                  ) : (
-                    <>
-                      <div className="brief">{t.outlet.localisation_brief}</div>
-                      <textarea
-                        className="graf-input"
-                        rows={4}
-                        value={grafs[t.outlet.id] || ""}
-                        onChange={(e) => setGrafs((prev) => ({ ...prev, [t.outlet.id]: e.target.value }))}
-                      />
-                    </>
-                  )}
-                </label>
-              ))}
-              {stage === "drafting" || stage === "checking" ? (
-                <button type="button" className="btn quiet" disabled={busy} onClick={() => run("outlet_override")}>
-                  Save outlet override
-                </button>
-              ) : null}
-            </section>
+            <TitlePicker
+              draftId={draft!.id}
+              stage={stage}
+              targets={draft!.targets}
+              extras={extras}
+              selected={selected}
+              grafs={grafs}
+              busy={busy}
+              onSelected={setSelected}
+              onGrafs={setGrafs}
+              onCatalog={rememberOutlet}
+              onSave={() => run("outlet_override")}
+            />
           ) : null}
           {showsSocial ? (
             <section>
@@ -466,13 +472,18 @@ export default function DeskApp({ initialId }: { initialId?: string }) {
         ) : null}
         {stage === "drafting" && draft ? (
           <>
-            <button type="button" className="btn primary" disabled={busy} onClick={() => run("send_to_checking")}>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={busy || generating}
+              onClick={() => run("send_to_checking")}
+            >
               Send to checking
             </button>
             <button type="button" className="btn quiet" disabled={busy} onClick={() => run("return_to_pitch")}>
               Back to pitch
             </button>
-            <button type="button" className="btn quiet" disabled={busy} onClick={() => run("tweak")}>
+            <button type="button" className="btn quiet" disabled={busy || generating} onClick={() => run("tweak")}>
               Save tweak
             </button>
           </>

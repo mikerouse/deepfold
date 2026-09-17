@@ -1,8 +1,10 @@
 # Deepfold Approvals Desk
 
-Human-in-the-loop newsroom control panel so AI-drafted articles are reviewed before they reach Conservative Post and the UK local titles around it.
+Human-in-the-loop newsroom control panel so AI-drafted articles are reviewed before they reach the titles under a **publisher** (default **Newsworld**). Conservative Post is one outlet/title, not the product name.
 
 This repository used to be a Django “publishing outlets / organisations / addresses” app. That application is gone from the working tree. **Git history is kept.** New work sits on top as a clean scaffold for the desk Mike Rouse actually needs: a journalist spike, a story well, outlet localisation, social packs, and a learning loop.
+
+AI drafting and images are **not** called from this app. See [`docs/architecture-ai-workers.md`](docs/architecture-ai-workers.md): Grok Bot claims `Job` rows and spends usage credits; Deepfold stores results and audit.
 
 ## Architecture
 
@@ -10,18 +12,20 @@ This repository used to be a Django “publishing outlets / organisations / addr
 Journalist (apps/desk, Next.js)
         │
         ▼
-FastAPI (apps/api)  ── confidence stub
+FastAPI (apps/api)  ── confidence stub  ── Job queue (Grok Bot workers)
         │
-        ├── Postgres  Draft (+ pipeline status, parked), DraftVersion, Outlet,
-        │             PublishTarget, Decision, MediaAsset, SocialPost, AuditEvent
-        ├── Redis     reserved for queues / locks (optional in v0)
+        ├── Postgres  Draft (+ pipeline status, parked, geography), DraftVersion, Outlet,
+        │             OutletPackage, PublishTarget, Decision, MediaAsset, SocialPost,
+        │             Job, AuditEvent
+        ├── Redis     reserved for queues / locks (optional in v0; jobs persist in Postgres)
         └── WordPress REST adapter (Application Password, draft-only by default)
 ```
 
 | Path | What it is |
 | --- | --- |
-| `apps/desk` | Journalist UI: queue, story, outlets, social stubs, actions |
-| `apps/api` | Drafts, decisions, outlets, confidence, WP stub, audit |
+| `apps/desk` | Journalist UI: publisher chrome, spike, story well, title targeting, social stubs |
+| `apps/api` | Drafts, decisions, outlets/packages, jobs, confidence, WP stub, audit |
+| `docs/architecture-ai-workers.md` | Grok Bot job path — no in-app LLM keys |
 | `packages/` | Pointer to the live OpenAPI contract (`/docs`) |
 | `AGENTS.md` | How VS Code and cloud agents / Grok Bot should use this repo |
 
@@ -79,7 +83,7 @@ Same git remote, same layout, same rules.
 
 - **VS Code / Cursor Desktop** — open the repo root, run Compose (or the SQLite fallback), work in `apps/desk` and `apps/api`. Do not recreate the Django `accounts` app.
 - **Cloud agents / Grok Bot** — treat this README and `AGENTS.md` as standing instructions. Prefer Compose when Docker exists; otherwise the SQLite fallback is the documented equivalent so the seeded desk still runs. Persist journalist actions only through `POST /drafts/{id}/decisions`. Never auto-publish `single_source`, `caution`, or `defamation_sensitive` copy. Honour `KILL_SWITCH`.
-- **Both** — feature work is branches + PRs. The live contract is FastAPI’s OpenAPI at `/openapi.json`.
+- **Both** — feature work is branches + PRs. The live contract is FastAPI’s OpenAPI at `/openapi.json`. Do not put OpenAI/xAI keys on the API for drafting; enqueue a `Job` and let Grok Bot complete it.
 
 ## Editorial pipeline
 
@@ -88,34 +92,39 @@ The desk is a **newsroom pipeline**, not a flat mixed queue. Abstract comes firs
 | Stage | What you see | What you do |
 | --- | --- | --- |
 | **Pitch** | Headline, abstract, sources, suggested outlets. Not a draft. | **Go** commissions a draft. **No-go** kills it (confirm + reason). **Leave** parks it on the spike. |
-| **Drafting** | Article, image plate, tags, outlet grafs. | Produce the piece, then **Send to checking**. **Back to pitch** undoes Go. |
+| **Drafting** | Full article (or “draft generating…” if the `draft_article` job is still queued), image plate, tags, title chips. | Produce the piece, then **Send to checking**. **Back to pitch** undoes Go. |
 | **Checking** | Journalist review. | **Approve CMS draft** / **Request changes** (reason) / **Reject** (reason) / **Hold**. |
 | **Publication** | WordPress draft-only targets (dry-run unless `WP_LIVE`). | File CMS drafts; **Send to social**. |
 | **Social** | X / Facebook stubs. | Approve / edit / hold. Connectors are not wired yet. |
 
 A persistent **stage strip with counts** filters the spike. Leave is not No-go. Approve & publish stays **off** by default. `single_source`, `caution`, and `defamation_sensitive` copy can never auto-publish.
 
-Seeded demo: the Midlands councils story sits in **Pitch** until Go. A burglary appeal is in **Drafting**. Checking holds the A5 Hinckley notice (calm, verified) and the cabinet-member diary gap (defamation-sensitive). Publication and Social start empty.
+Seeded demo: the Midlands councils story sits in **Pitch** until Go — then the seeded article body is revealed (jobs completed from seed so the desk is not empty). A burglary appeal is already in **Drafting** with a real spine. Checking holds the A5 Hinckley notice (calm, verified) and the cabinet-member diary gap (defamation-sensitive). Publication and Social start empty.
+
+The publisher name is **Newsworld** (`PUBLISHER_NAME`). Conservative Post is one of ~12 seeded titles, plus a Worcestershire package (Redditch / Bromsgrove / Worcester). Title targeting is search + suggestions + packages, not a flat checklist.
 
 ## Journalist screen (v0)
 
 The desk opens on **Pitch**. Seeded copy:
 
-1. Midlands social-care savings — **Pitch** until Go (verified, multi-outlet)
+1. Midlands social-care savings — **Pitch** until Go (verified, multi-title)
 2. Nuneaton burglary appeal — **Drafting** (**single-source** — human only)
 3. Cabinet member / housebuilder diary gap — **Checking** (**defamation-sensitive**)
 4. A5 Hinckley night closures — **Checking** (routine, higher confidence)
 
-Checking still localises per outlet and files WordPress **drafts** (dry-run unless `WP_LIVE=true`). Social **connectors are not wired**; stubs appear at the Social stage. Approve & publish remains feature-flagged **off**.
+Checking still localises per title and files WordPress **drafts** (dry-run unless `WP_LIVE=true`). Social **connectors are not wired**; stubs appear at the Social stage. Approve & publish remains feature-flagged **off**.
 
 ## Desk design
 
 The journalist UI is meant to read as newsroom furniture — a high-end British paper’s back-bench tool — not a SaaS admin panel.
 
 - Off-white paper, near-black ink, one navy accent. Crimson only for No-go / reject / kill switch.
+- Masthead is the **publisher** (Newsworld), not a single title. Quiet **All titles** / focus-title control.
 - Stage strip is labelled text + counts with an underline for the active stage, not badge tabs.
 - Spike rows: headline, one-line abstract, at most two or three quiet markers.
-- Story well is a ~65-character column. One primary action per stage; secondary actions stay as text.
+- Story well is a ~65-character column. Drafting shows the article, plate and tags; Pitch stays abstract-only.
+- Titles: chips, geography suggestions, packages, typeahead. Never a thousand-row checklist.
+- One primary action per stage; secondary actions stay as text.
 - Pitch hides the right-hand rail. No-go is a sparse confirm with a required reason.
 
 ## Learning loop and confidence
@@ -140,11 +149,11 @@ Variants are **not** synonym spam. Each story has:
 - a shared **spine** (the news)
 - an outlet-specific **local graf** (what changes on *this* street / in *this* town hall)
 
-`compose_variant(spine, local_graf, outlet)` concatenates those two. Journalists can accept the suggested outlets or change them.
+`compose_variant(spine, local_graf, outlet)` concatenates those two. Journalists add titles via search or a package, not by ticking the whole registry.
 
 **SEO caveat.** Google will treat near-duplicate town pages as thin or duplicate if the only difference is a swapped place-name. Unique local reporting (named people, a planning reference, a junction, a quote) has to live in the local graf — or the piece should canonicalise to one URL. Do not scale to “every UK town” by spinning the spine.
 
-Outlet registry is a first-class table so the same desk can grow to every UK town; publisher adapters start with **WordPress REST**. Regional desks are a later routing concern, not a second product.
+Outlet registry is a first-class table so the same desk can grow to every UK town; publisher adapters start with **WordPress REST**. Regional desks are a later routing concern, not a second product. Packages (county groups of titles) are how targeting stays usable at that scale.
 
 ## WordPress Application Password — draft-only flow
 
@@ -166,12 +175,15 @@ Pointer for every agent and journalist:
 ## API (minimum)
 
 - `GET /health`
-- `GET /settings`
-- `GET /pipeline`
-- `GET /drafts` (`?stage=pitch|drafting|checking|publication|social`)
+- `GET /settings` (`publisher_name`)
+- `GET /pipeline` (`?outlet_id=`)
+- `GET /drafts` (`?stage=&outlet_id=`)
 - `GET /drafts/{id}`
 - `POST /drafts/{id}/decisions`
-- `GET /outlets`
+- `GET /outlets` (`?q=&county=&region=&limit=`)
+- `GET /outlets/packages`
+- `GET /outlets/suggest?draft_id=`
+- `GET /jobs` / `POST /jobs/{id}/claim` / `POST /jobs/{id}/complete`
 - `GET /audit`
 
 ## Roadmap (not this pass)
@@ -183,8 +195,8 @@ Mentioned so they are not invented here:
 - Street journalism app
 - Advertising / commercials
 
-Scale path that **is** in scope for the design: outlet registry → WordPress adapters → regional desks.
+Scale path that **is** in scope for the design: outlet registry → packages → WordPress adapters → regional desks. LLM calls stay on Grok Bot via `Job`.
 
 ## License
 
-The historical `license.md` in this repo is CC0 1.0. Product copy and newsroom policy sit with Conservative Post / Mike Rouse.
+The historical `license.md` in this repo is CC0 1.0. Product copy and newsroom policy sit with the publisher / Mike Rouse.

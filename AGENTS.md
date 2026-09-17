@@ -1,6 +1,6 @@
 # Agent notes — Deepfold Approvals Desk
 
-This repository is the **newsroom control panel** for Mike Rouse’s UK local-news / Conservative Post operation. It is not the legacy Django outlet-manager.
+This repository is the **newsroom control panel** for a multi-title UK local publisher (default name **Newsworld**). Conservative Post is one outlet/title, not the product. It is not the legacy Django outlet-manager.
 
 ## Do not resurrect
 
@@ -11,7 +11,8 @@ The old `app/accounts` Django project (organisations, addresses, profile tasks, 
 | Path | Role |
 | --- | --- |
 | `apps/desk` | Next.js journalist UI |
-| `apps/api` | FastAPI: drafts, outlets, decisions, confidence stub, WordPress adapter stub |
+| `apps/api` | FastAPI: drafts, outlets, packages, jobs, decisions, confidence stub, WordPress adapter stub |
+| `docs/architecture-ai-workers.md` | Grok Bot job path — no in-app LLM keys |
 | `packages/` | Shared notes / contracts (OpenAPI is served live at `/docs`) |
 
 ## How humans and agents use this repo
@@ -20,4 +21,4 @@ The old `app/accounts` Django project (organisations, addresses, profile tasks, 
 
 **Cloud agents / Grok Bot.** Same repo, same branch model. Prefer Docker Compose when the environment has Docker. If Docker is missing, use the SQLite fallback documented in the README (`DATABASE_URL=sqlite+pysqlite:///./apps/api/deepfold.db`) so the API still boots and the desk can review seeded drafts. Do not invent a third product surface.
 
-**Both.** Schema lives in `apps/api/app/models.py` and Alembic. Persist every journalist decision through `POST /drafts/{id}/decisions`. Pipeline stages are Pitch → Drafting → Checking → Publication → Social. Pitch items are abstracts; **Go** commissions a draft. Never auto-publish `single_source`, `caution`, or `defamation_sensitive` copy. Honour `KILL_SWITCH` and `APPROVE_AND_PUBLISH_ENABLED` (off by default).
+**Both.** Schema lives in `apps/api/app/models.py` and Alembic. Persist every journalist decision through `POST /drafts/{id}/decisions`. Pipeline stages are Pitch → Drafting → Checking → Publication → Social. Pitch items are abstracts; **Go** commissions a draft (`Job` `draft_article`). Grok Bot claims jobs and POSTs results; do not add vendor LLM keys to the app. Never auto-publish `single_source`, `caution`, or `defamation_sensitive` copy. Honour `KILL_SWITCH` and `APPROVE_AND_PUBLISH_ENABLED` (off by default). Title targeting is search + packages, not a flat checklist of the registry.
