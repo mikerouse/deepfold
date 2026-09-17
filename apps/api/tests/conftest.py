@@ -5,6 +5,8 @@ os.environ["DATABASE_URL"] = f"sqlite+pysqlite:///{Path(__file__).parent / 'test
 os.environ["APPROVE_AND_PUBLISH_ENABLED"] = "false"
 os.environ["KILL_SWITCH"] = "false"
 os.environ["WP_LIVE"] = "false"
+os.environ["DEMO_INSTANT_FULFILL"] = "false"
+os.environ["DEMO_GROK_WORKER"] = "false"
 
 import pytest
 from fastapi.testclient import TestClient

@@ -33,6 +33,8 @@ def get_settings():
         default_actor=settings.default_actor,
         publisher_name=settings.publisher_name,
         product="Deepfold",
+        demo_instant_fulfill=settings.demo_instant_fulfill,
+        demo_grok_worker=settings.demo_grok_worker,
     )
 
 

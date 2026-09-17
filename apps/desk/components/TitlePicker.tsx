@@ -12,6 +12,7 @@ type Props = {
   selected: Record<string, boolean>;
   grafs: Record<string, string>;
   busy: boolean;
+  embedded?: boolean;
   onSelected: (next: Record<string, boolean>) => void;
   onGrafs: (next: Record<string, string>) => void;
   onCatalog: (outlet: Outlet) => void;
@@ -26,6 +27,7 @@ export default function TitlePicker({
   selected,
   grafs,
   busy,
+  embedded = false,
   onSelected,
   onGrafs,
   onCatalog,
@@ -113,8 +115,8 @@ export default function TitlePicker({
   const planning = stage === "pitch";
 
   return (
-    <section>
-      <h2>{publication ? "CMS titles" : "Titles"}</h2>
+    <section className={embedded ? "title-panel" : undefined}>
+      {embedded ? null : <h2>{publication ? "CMS titles" : "Titles"}</h2>}
       <div className="chips">
         {selectedOutlets.map((outlet) => (
           <span className="chip" key={outlet.id}>

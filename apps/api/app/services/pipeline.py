@@ -63,6 +63,8 @@ ACTIONS_BY_STAGE: dict[str, set[str]] = {
         DecisionAction.return_to_pitch.value,
         DecisionAction.tweak.value,
         DecisionAction.outlet_override.value,
+        DecisionAction.request_rewrite.value,
+        DecisionAction.queue_featured_image.value,
     },
     PipelineStage.checking.value: {
         DecisionAction.approve_create_cms_drafts.value,
@@ -73,6 +75,8 @@ ACTIONS_BY_STAGE: dict[str, set[str]] = {
         DecisionAction.tweak.value,
         DecisionAction.outlet_override.value,
         DecisionAction.return_to_pitch.value,
+        DecisionAction.request_rewrite.value,
+        DecisionAction.queue_featured_image.value,
     },
     PipelineStage.publication.value: {
         DecisionAction.advance_to_social.value,

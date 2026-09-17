@@ -1,4 +1,4 @@
-import type { DraftListItem, PipelineStage } from "./types";
+import type { DraftListItem, Job, PipelineStage } from "./types";
 
 export const VISIBLE_PLATFORMS = 3;
 
@@ -13,11 +13,15 @@ export function groupByStage(rows: DraftListItem[], stages: PipelineStage[], sta
   return groups;
 }
 
+export function openJobs(jobs: Job[] | undefined) {
+  return (jobs || []).filter((job) => job.status === "queued" || job.status === "claimed");
+}
+
 export function stageMarks(item: DraftListItem) {
   const stage = item.pipeline_stage || "";
   const marks: { text: string; tone?: string }[] = [];
   if (item.parked) marks.push({ text: "Left", tone: "left" });
-  if (stage === "drafting" && !item.draft_ready) marks.push({ text: "Generating" });
+  if (item.worker_status) marks.push({ text: item.worker_status, tone: "worker" });
   if (item.status === "changes_requested") marks.push({ text: "Changes", tone: "changes_requested" });
   if (item.status === "held") marks.push({ text: "Held", tone: "held" });
   if (stage && stage !== "pitch" && item.verification_status !== "verified") {

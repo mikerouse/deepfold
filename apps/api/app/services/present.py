@@ -8,6 +8,7 @@ from app.schemas import (
     DecisionOut,
     DraftDetail,
     DraftListItem,
+    DraftVersionOut,
     JobOut,
     MediaAssetOut,
     PlatformChip,
@@ -15,8 +16,9 @@ from app.schemas import (
     SocialPostOut,
 )
 from app.services.confidence import score_draft
-from app.services.jobs import draft_is_ready
+from app.services.jobs import article_job_completed, draft_is_ready, pending_article_job
 from app.services.pipeline import stage_for_status
+from app.services.worker_status import worker_labels, worker_status
 
 # Planning list stub — four intents, never the visual centre.
 USER_NEED_INTENTS = ("Update me", "Inform me", "Hold me to account", "Amuse me")
@@ -83,9 +85,18 @@ def featured_image_label(draft: Draft) -> str | None:
     return None
 
 
+def waiting_on_first_draft(draft: Draft, is_pitch: bool) -> bool:
+    if is_pitch:
+        return False
+    if article_job_completed(draft):
+        return False
+    return pending_article_job(draft) is not None or not (draft.spine_body or "").strip()
+
+
 def to_list_item(draft: Draft) -> DraftListItem:
     stage = stage_for_status(draft.status)
     is_pitch = stage == PipelineStage.pitch.value
+    labels = worker_labels(draft, include_ready=False)
     return DraftListItem(
         id=draft.id,
         headline=draft.headline,
@@ -106,6 +117,8 @@ def to_list_item(draft: Draft) -> DraftListItem:
         selected_outlet_ids=selected_outlet_ids(draft),
         image_label=None if is_pitch else featured_image_label(draft),
         draft_ready=False if is_pitch else draft_is_ready(draft),
+        worker_status=worker_status(draft, include_ready=False),
+        worker_labels=labels,
         created_at=draft.created_at,
         updated_at=draft.updated_at,
     )
@@ -128,25 +141,36 @@ def to_detail(draft: Draft) -> DraftDetail:
     confidence = apply_confidence(draft)
     item = to_list_item(draft)
     is_pitch = item.pipeline_stage == PipelineStage.pitch.value
-    ready = item.draft_ready
+    generating = waiting_on_first_draft(draft, is_pitch)
+    labels = worker_labels(draft, include_ready=True)
     jobs = [JobOut.model_validate(j) for j in sorted(draft.jobs or [], key=lambda x: x.created_at, reverse=True)]
+    versions = [
+        DraftVersionOut.model_validate(v)
+        for v in sorted(draft.versions or [], key=lambda x: x.version_number, reverse=True)
+    ]
+    item_data = item.model_dump()
+    item_data["worker_status"] = labels[0] if labels else None
+    item_data["worker_labels"] = labels
     return DraftDetail(
-        **item.model_dump(),
+        **item_data,
         byline=draft.byline,
         source_links=draft.source_links or [],
         geography=draft.geography or {},
-        spine_body="" if is_pitch or not ready else draft.spine_body,
+        spine_body="" if is_pitch or generating else draft.spine_body,
         media=[] if is_pitch else [MediaAssetOut.model_validate(m) for m in draft.media],
         social_posts=[] if is_pitch else [SocialPostOut.model_validate(s) for s in draft.social_posts],
         targets=[PublishTargetOut.model_validate(t) for t in draft.targets],
         decisions=[DecisionOut.model_validate(d) for d in sorted(draft.decisions, key=lambda x: x.created_at, reverse=True)],
         jobs=[] if is_pitch else jobs,
+        versions=[] if is_pitch else versions,
         confidence=ConfidenceOut(**confidence),
         flags={
             "kill_switch": settings.kill_switch,
             "approve_and_publish_enabled": settings.approve_and_publish_enabled,
             "wp_live": settings.wp_live,
+            "demo_instant_fulfill": settings.demo_instant_fulfill,
+            "demo_grok_worker": settings.demo_grok_worker,
         },
         is_pitch=is_pitch,
-        generating=(not is_pitch) and (not ready),
+        generating=generating,
     )

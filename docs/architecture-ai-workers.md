@@ -72,7 +72,9 @@ POST /jobs/{id}/complete
 
 Deepfold stores a `MediaAsset` (`role=featured`) on the draft: `url`, alt, caption, `prompt_version`. AI plates are never `documentary_incident`. Fail the job rather than file a fake crime / fire / crash / named-person photo.
 
-The Midlands demo pitch already has a seeded plate URL. **Go** completes `featured_image` in-process from that seed so Drafting/Checking are not empty. That is demo fulfillment, not an in-app image-model call.
+The Midlands demo pitch already has a seeded plate URL and article spine in the database. **Go does not complete those jobs in-process** unless `DEMO_INSTANT_FULFILL=true`. Default (investor path): enqueue `draft_article`, `featured_image`, and `localize_outlets` and leave them `queued` for Grok Bot. The desk shows **Queued for drafting** until a worker claims the article job (**Drafting…**), then the spine. Same for the plate: **Queued for image** / **Generating image…** / still shown when a `MediaAsset` exists.
+
+`DEMO_INSTANT_FULFILL` is a demo shortcut, not an in-app image-model or LLM call. Leave it off unless you need the old “body appears on Go” behaviour.
 
 ### Stub HTTP (real, tested)
 
@@ -83,6 +85,7 @@ Grok Bot (cloud agent, routine, or skill) talks only to these endpoints. No mode
 - `POST /jobs/{id}/claim` `{ "worker": "grok-bot" }`
 - `POST /jobs/{id}/complete` `{ "worker": "grok-bot", "spine_body": "..." }` (fields depend on kind; featured image: `url`, `alt_text`, `caption`, `prompt_version`)
 - `GET /jobs/{id}`
+- `POST /jobs/demo-tick` — optional localhost stand-in, only when `DEMO_GROK_WORKER` is on
 
 Claim is exclusive (`409` if not `queued`). Complete from `queued` or `claimed` is allowed so a single worker step can finish a demo job. Failed completes send `error`.
 
@@ -107,7 +110,13 @@ Desk  --Go-->  Job queued
          Desk shows the article / plate / grafs
 ```
 
-If the bot is not running, Drafting shows **Draft generating…** and a skeleton until a `draft_article` job completes and a spine exists. The Midlands demo pitch already has a seeded article: **Go** enqueues the three commission jobs and **completes them in-process** from that seed so the investor desk is not empty. That is a demo fulfillment, not an in-app LLM call. A pitch with an empty spine stays queued for a real worker.
+If the bot is not running, Drafting shows **Queued for drafting** (job `queued`) then **Drafting…** (job `claimed`) and a skeleton until a `draft_article` job completes and a spine is visible. A pitch with an empty spine stays queued for a real worker. Seeded copy in the database is not revealed until that job completes (unless `DEMO_INSTANT_FULFILL=true`).
+
+### Optional localhost demo worker
+
+Set `DEMO_GROK_WORKER=1` (or `true`) to simulate Grok Bot **without vendor API keys**. A background loop, or `POST /jobs/demo-tick`, claims the oldest queued job as worker `demo-grok-bot`, waits ~3s (`DEMO_GROK_WORKER_DELAY_SECONDS`), and completes it with seed/stub content. The desk can poll and show Queued → Drafting → body. This is labelled in `/settings` (`demo_grok_worker`) and on the story toolbar. It is **not** an LLM call.
+
+Default for both flags is **off**. Grok Bot remains the real credit spender.
 
 ## What must not be added
 

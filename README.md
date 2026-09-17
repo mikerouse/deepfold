@@ -91,15 +91,23 @@ The desk is a **newsroom pipeline**, not a flat mixed queue. Abstract comes firs
 
 | Stage | What you see | What you do |
 | --- | --- | --- |
-| **Pitch** | Headline, abstract, sources, suggested outlets. Not a draft. | **Go** commissions a draft. **No-go** kills it (confirm + reason). **Leave** parks it on the spike. |
-| **Drafting** | Full article (or “draft generating…” if the `draft_article` job is still queued), image plate, tags, title chips. | Produce the piece, then **Send to checking**. **Back to pitch** undoes Go. |
-| **Checking** | Journalist review. | **Approve CMS draft** / **Request changes** (reason) / **Reject** (reason) / **Hold**. |
+| **Pitch** | Headline, abstract, sources, suggested outlets. Not a draft. | **Go** (Story menu / toolbar) commissions jobs for Grok Bot. **No-go** kills it (confirm + reason). **Leave** parks it on the spike. |
+| **Drafting** | Full article once a worker completes `draft_article`, or **Queued for drafting** / **Drafting…** with a skeleton. Image plate or **Queued for image**. | Produce the piece, then **Publish → Send to checking**. **Story → Back to pitch** undoes Go. **Draft → Request rewrite** queues another job. |
+| **Checking** | Journalist review. | **Publish → Create WordPress drafts** / **Request changes** (reason) / **Reject** (reason) / **Hold**. |
 | **Publication** | WordPress draft-only targets (dry-run unless `WP_LIVE`). | File CMS drafts; **Send to social**. |
-| **Social** | X / Facebook stubs. | Approve / edit / hold. Connectors are not wired yet. |
+| **Social** | X / Facebook stubs. | **Social** menu: approve / edit / hold / copy pack. Connectors are not wired yet. |
 
 A persistent **stage strip with counts** filters the spike. Leave is not No-go. Approve & publish stays **off** by default. `single_source`, `caution`, and `defamation_sensitive` copy can never auto-publish.
 
-Seeded demo: the Midlands councils story sits in **Pitch** until Go — then the seeded article body is revealed (jobs completed from seed so the desk is not empty). A burglary appeal is already in **Drafting** with a real spine. Checking holds the A5 Hinckley notice (calm, verified) and the cabinet-member diary gap (defamation-sensitive). Publication and Social start empty.
+Seeded demo: the Midlands councils story sits in **Pitch** until Go — then `draft_article`, `featured_image`, and `localize_outlets` stay **queued** for Grok Bot (the desk shows **Queued for drafting**, not an instant article). A burglary appeal is already in **Drafting** with a real spine. Checking holds the A5 Hinckley notice (calm, verified) and the cabinet-member diary gap (defamation-sensitive). Publication and Social start empty.
+
+To watch Queued → Drafting → body on localhost without a live bot:
+
+```bash
+DEMO_GROK_WORKER=true docker compose up --build
+```
+
+Or `POST /jobs/demo-tick` with that flag on. This simulates Grok Bot with seed/stub copy after a short delay. It is **not** an LLM call. `DEMO_INSTANT_FULFILL=true` restores the old in-process seed complete on Go (default **off**).
 
 The publisher name is **Newsworld** (`PUBLISHER_NAME`). Conservative Post is one of ~12 seeded titles, plus a Worcestershire package (Redditch / Bromsgrove / Worcester). Title targeting is search + suggestions + packages, not a flat checklist.
 
@@ -124,10 +132,8 @@ The journalist UI is meant to read as newsroom furniture — a high-end British 
 - Masthead is the **publisher** (Newsworld), not a single title. Quiet **All titles** / focus-title control.
 - Stage strip is a quiet **filters bar** (stage, web/social, county, package) with counts, not badge tabs.
 - Stories list is grouped by stage: headline, one-line abstract, stacked `Web | {title}` / `Social | X` chips (selected + “+N”), a stub reader-need column, and a quiet stage/verification mark.
-- Click a row to drill into the story well (~65-character column). Pitch stays abstract-only; Drafting shows the article, plate and tags.
-- Titles: chips, geography suggestions, packages, typeahead. Never a thousand-row checklist.
-- One primary action per stage; secondary actions stay as text.
-- Pitch well is abstract-only; titles sit in a slim rail. No-go is a sparse confirm with a required reason.
+- Click a row to open the story as a **document**: Word-like **Story / Draft / Image / Titles / Publish / Social** toolbar for actions, live worker status in the strip, optional info rail (sources, verification, geography, job IDs) with **no pipeline buttons**.
+- Pitch well is abstract-only. Titles open from the **Titles** menu (search + packages), not a sidebar action strip.
 
 ## Learning loop and confidence
 
@@ -187,6 +193,7 @@ Pointer for every agent and journalist — full standing recipe: [`docs/featured
 - `GET /outlets/packages`
 - `GET /outlets/suggest?draft_id=`
 - `GET /jobs` / `POST /jobs/{id}/claim` / `POST /jobs/{id}/complete`
+- `POST /jobs/demo-tick` (only when `DEMO_GROK_WORKER=1`)
 - `GET /audit`
 
 ## Roadmap (not this pass)

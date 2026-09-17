@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import get_db
 from app.models import Job
-from app.schemas import JobClaimIn, JobCompleteIn, JobOut
+from app.schemas import DemoTickOut, JobClaimIn, JobCompleteIn, JobOut
+from app.services.demo_worker import DEMO_NOTE, run_demo_tick
 from app.services.jobs import claim_job, complete_job, load_job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -28,6 +30,18 @@ def list_jobs(
     if draft_id:
         query = query.filter(Job.draft_id == draft_id)
     return query.order_by(Job.created_at.asc()).limit(100).all()
+
+
+@router.post("/demo-tick", response_model=DemoTickOut)
+def demo_tick():
+    """Claim and stub-complete one queued job. Simulates Grok Bot; not an LLM call."""
+    if not settings.demo_grok_worker:
+        raise HTTPException(
+            status_code=403,
+            detail="Demo Grok worker is off. Set DEMO_GROK_WORKER=1 to simulate claim/complete without a live bot.",
+        )
+    job = run_demo_tick()
+    return DemoTickOut(ok=True, simulating=DEMO_NOTE, job=job)
 
 
 @router.get("/{job_id}", response_model=JobOut)
