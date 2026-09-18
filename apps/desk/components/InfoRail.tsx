@@ -8,7 +8,12 @@ function mark(value: string, extra = "") {
 
 function jobLine(job: Job) {
   const short = job.id.slice(0, 8);
-  return `${job.kind.replaceAll("_", " ")} · ${job.status} · ${short}`;
+  const label =
+    job.kind === "draft_article" && typeof job.payload?.house_style_label === "string"
+      ? job.payload.house_style_label.trim()
+      : "";
+  const style = label ? ` · ${label}` : "";
+  return `${job.kind.replaceAll("_", " ")} · ${job.status} · ${short}${style}`;
 }
 
 type Props = {

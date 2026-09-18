@@ -27,7 +27,7 @@ Jobs are rows on `jobs`. Kinds:
 
 | Kind | When | Worker result written back as |
 | --- | --- | --- |
-| `draft_article` | **Go** | `Draft.spine_body` + `DraftVersion` |
+| `draft_article` | **Go** / rewrite | `Draft.spine_body` + `DraftVersion` (standing house-style brief embedded) |
 | `featured_image` | **Go** | `MediaAsset` (Saatchi-style plate; never a fake incident photo) |
 | `localize_outlets` | **Go** | `PublishTarget.local_graf` per selected title |
 | `social_stubs` | Send to social | `SocialPost` bodies |
@@ -35,6 +35,50 @@ Jobs are rows on `jobs`. Kinds:
 Statuses: `queued` → `claimed` → `completed` | `failed` | `cancelled`.
 
 Open jobs are cancelled on **No-go** and **Back to pitch**.
+
+### Draft article (`draft_article`)
+
+Standing house style (do not invent a second prompt): Claire’s Sep 2026 Conservative Post master editorial, and shared local craft without CP politics.
+
+| Brief | When | Prompt |
+| --- | --- | --- |
+| `draft_article_conservative_post_v1` | Primary title is Conservative Post / patriotic national | [`docs/conservative-post-house-style.md`](conservative-post-house-style.md) / [`apps/api/app/prompts/draft_article_conservative_post_v1.md`](../apps/api/app/prompts/draft_article_conservative_post_v1.md) |
+| `draft_article_local_v1` | Redditch Standard, Bromsgrove Standard, Worcester Observer, other locals, or unknown | [`docs/local-paper-craft.md`](local-paper-craft.md) / [`apps/api/app/prompts/draft_article_local_v1.md`](../apps/api/app/prompts/draft_article_local_v1.md) |
+
+**Routing.** If Conservative Post (seeded slug `conservative-post`, or a National-region patriotic title) is among the selected titles, the spine uses the CP brief even when local titles are also selected — locals still get grafs from `localize_outlets`. Otherwise the first selected outlet is the primary. If nothing is selected or the title is unknown, **default to local craft** (no CP politics).
+
+On **Go** and **Request rewrite** the API enqueues this kind with a complete payload so a Grok Bot skill can draft without a second style guide:
+
+| Field | Meaning |
+| --- | --- |
+| `brief_version` | `draft_article_conservative_post_v1` or `draft_article_local_v1` |
+| `brief_path` | repo path of the prompt file |
+| `base_brief` | full text of that file |
+| `house_style_label` | `Conservative Post v1` or `Local craft v1` (desk may show this) |
+| `headline`, `slug`, `standfirst`, `abstract` | story context (`abstract` is the pitch standfirst) |
+| `spine` / `spine_body` | existing copy if any (rewrites start from this) |
+| `geography` | pitch regions / counties / towns |
+| `source_links`, `categories`, `tags`, `verification_status` | commission extras |
+| `primary_outlet` | `{name, slug, region}` of the title the spine is for, or `null` |
+
+The worker follows `base_brief` as the complete house style, writes **one article** outside Deepfold, and completes:
+
+```http
+POST /jobs/{id}/complete
+```
+
+```json
+{
+  "worker": "grok-bot",
+  "headline": "Punchy factual headline, 8–14 words",
+  "standfirst": "The news in one or two sentences",
+  "spine_body": "Full article in British English"
+}
+```
+
+Deepfold stores the spine and a `DraftVersion`. Workers must follow the embedded house style. Do not add vendor LLM keys to the API. Fail the job rather than invent facts.
+
+The desk shows **Queued for drafting** until a worker claims the article job (**Drafting…**), then the spine. A quiet **House style: Conservative Post v1** / **Local craft v1** note may appear while that job is open.
 
 ### Featured image (`featured_image`)
 
@@ -83,7 +127,7 @@ Grok Bot (cloud agent, routine, or skill) talks only to these endpoints. No mode
 - `GET /jobs?status=queued&kind=draft_article`
 - `GET /jobs?status=queued&kind=featured_image`
 - `POST /jobs/{id}/claim` `{ "worker": "grok-bot" }`
-- `POST /jobs/{id}/complete` `{ "worker": "grok-bot", "spine_body": "..." }` (fields depend on kind; featured image: `url`, `alt_text`, `caption`, `prompt_version`)
+- `POST /jobs/{id}/complete` `{ "worker": "grok-bot", "spine_body": "..." }` (fields depend on kind; `draft_article` must follow the embedded `base_brief` house style; featured image: `url`, `alt_text`, `caption`, `prompt_version`)
 - `GET /jobs/{id}`
 - `POST /jobs/demo-tick` — optional localhost stand-in, only when `DEMO_GROK_WORKER` is on
 
@@ -125,7 +169,7 @@ Default for both flags is **off**. Grok Bot remains the real credit spender.
 - Auto-publish of `single_source`, `caution`, or `defamation_sensitive` copy
 - Treating Conservative Post as the product name — it is one **title** under the publisher (`PUBLISHER_NAME`, default Newsworld)
 
-Image policy is unchanged: editorial stills, not reconstructed incidents. The standing recipe is [`docs/featured-image-brief.md`](featured-image-brief.md) / `featured_image_v1`.
+Image policy is unchanged: editorial stills, not reconstructed incidents. The standing recipe is [`docs/featured-image-brief.md`](featured-image-brief.md) / `featured_image_v1`. Drafting house style is [`conservative-post-house-style.md`](conservative-post-house-style.md) or [`local-paper-craft.md`](local-paper-craft.md) as routed on the job.
 
 ## Titles at thousands-scale
 

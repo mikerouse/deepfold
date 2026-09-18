@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.enums import JobKind, JobStatus, MediaRole, SocialPlatform, SocialStatus
 from app.models import Draft, DraftVersion, Job, MediaAsset, PublishTarget, SocialPost, utcnow
+from app.prompts.draft_article import draft_article_payload
 from app.prompts.featured_image import (
     BRIEF_VERSION,
     DEFAULT_CREDIT,
@@ -56,6 +57,8 @@ def draft_is_ready(draft: Draft) -> bool:
 def _default_payload(draft: Draft, kind: str) -> dict[str, Any]:
     if kind == JobKind.featured_image.value:
         return featured_image_payload(draft)
+    if kind == JobKind.draft_article.value:
+        return draft_article_payload(draft)
     return {"headline": draft.headline, "slug": draft.slug}
 
 
