@@ -1,5 +1,6 @@
 "use client";
 
+import { houseStyleNote } from "../lib/story";
 import type { DraftDetail, MediaAsset } from "../lib/types";
 
 type Props = {
@@ -36,6 +37,7 @@ export default function StoryCanvas({
   onSpine,
 }: Props) {
   const storyKicker = draft.categories[0];
+  const houseStyle = houseStyleNote(draft.jobs);
   const sensitive =
     draft.verification_status !== "verified" && stage !== "pitch"
       ? draft.verification_status.replaceAll("_", " ")
@@ -82,6 +84,7 @@ export default function StoryCanvas({
       )}
       {draft.parked ? <p className="byline">Left on the spike</p> : null}
       {notice ? <p className="quiet-banner">{notice}</p> : null}
+      {houseStyle ? <p className="quiet-banner">{houseStyle}</p> : null}
       {showsBody && draft.tags.length > 0 && !generating ? <p className="tag-line">{draft.tags.join(" · ")}</p> : null}
 
       {showsImage && featured?.url ? (

@@ -83,7 +83,7 @@ Same git remote, same layout, same rules.
 
 - **VS Code / Cursor Desktop** — open the repo root, run Compose (or the SQLite fallback), work in `apps/desk` and `apps/api`. Do not recreate the Django `accounts` app.
 - **Cloud agents / Grok Bot** — treat this README and `AGENTS.md` as standing instructions. Prefer Compose when Docker exists; otherwise the SQLite fallback is the documented equivalent so the seeded desk still runs. Persist journalist actions only through `POST /drafts/{id}/decisions`. Never auto-publish `single_source`, `caution`, or `defamation_sensitive` copy. Honour `KILL_SWITCH`.
-- **Both** — feature work is branches + PRs. The live contract is FastAPI’s OpenAPI at `/openapi.json`. Do not put OpenAI/xAI keys on the API for drafting; enqueue a `Job` and let Grok Bot complete it.
+- **Both** — feature work is branches + PRs. The live contract is FastAPI’s OpenAPI at `/openapi.json`. Do not put OpenAI/xAI keys on the API for drafting; enqueue a `Job` and let Grok Bot complete it. `draft_article` jobs embed a standing house-style `base_brief` (`draft_article_conservative_post_v1` or `draft_article_local_v1`; see `docs/architecture-ai-workers.md`).
 
 ## Editorial pipeline
 

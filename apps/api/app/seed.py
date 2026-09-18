@@ -17,6 +17,7 @@ from app.models import (
     PublishTarget,
     SocialPost,
 )
+from app.prompts.draft_article import draft_article_payload
 from app.prompts.featured_image import BRIEF_VERSION, featured_image_payload, plate_url_for
 from app.services.audit import write_audit
 from app.services.pipeline import SEED_STAGE_BY_SLUG
@@ -323,7 +324,7 @@ def _seed_completed_jobs(db: Session, draft: Draft) -> None:
     if existing:
         return
     kinds = [
-        (JobKind.draft_article.value, {"spine_body": "seeded"}, {"headline": draft.headline, "slug": draft.slug}),
+        (JobKind.draft_article.value, {"spine_body": "seeded"}, draft_article_payload(draft)),
         (JobKind.featured_image.value, {"media": "seeded"}, featured_image_payload(draft)),
         (JobKind.localize_outlets.value, {"local_grafs": "seeded"}, {"headline": draft.headline, "slug": draft.slug}),
     ]
@@ -364,12 +365,13 @@ def _ensure_demo_scale(db: Session) -> None:
             if not (asset.prompt_version or "").strip():
                 asset.prompt_version = BRIEF_VERSION
         for job in draft.jobs or []:
-            if job.kind != JobKind.featured_image.value:
-                continue
             payload = job.payload or {}
             if payload.get("brief_version") and payload.get("base_brief"):
                 continue
-            job.payload = featured_image_payload(draft)
+            if job.kind == JobKind.featured_image.value:
+                job.payload = featured_image_payload(draft)
+            elif job.kind == JobKind.draft_article.value:
+                job.payload = draft_article_payload(draft)
 
 
 def _seed(db: Session) -> None:
@@ -596,14 +598,15 @@ def _seed(db: Session) -> None:
         db.add(draft)
         db.flush()
         for slug, graf in spec["outlets"].items():
-            db.add(
-                PublishTarget(
-                    draft_id=draft.id,
-                    outlet_id=outlets[slug].id,
-                    selected=slug in selected,
-                    local_graf=graf,
-                )
+            target = PublishTarget(
+                draft_id=draft.id,
+                outlet_id=outlets[slug].id,
+                selected=slug in selected,
+                local_graf=graf,
             )
+            target.outlet = outlets[slug]
+            db.add(target)
+            draft.targets.append(target)
         for media in spec["media"]:
             db.add(MediaAsset(draft_id=draft.id, **media))
         for platform, copy in spec["social"].items():

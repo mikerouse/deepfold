@@ -17,6 +17,18 @@ export function openJobs(jobs: Job[] | undefined) {
   return (jobs || []).filter((job) => job.status === "queued" || job.status === "claimed");
 }
 
+export function houseStyleNote(jobs: Job[] | undefined): string | null {
+  const job = openJobs(jobs).find((row) => row.kind === "draft_article");
+  if (!job) return null;
+  const payload = job.payload || {};
+  const label = typeof payload.house_style_label === "string" ? payload.house_style_label.trim() : "";
+  if (label) return `House style: ${label}`;
+  const version = typeof payload.brief_version === "string" ? payload.brief_version : "";
+  if (version === "draft_article_conservative_post_v1") return "House style: Conservative Post v1";
+  if (version === "draft_article_local_v1") return "House style: Local craft v1";
+  return null;
+}
+
 export function stageMarks(item: DraftListItem) {
   const stage = item.pipeline_stage || "";
   const marks: { text: string; tone?: string }[] = [];
