@@ -56,7 +56,7 @@ Also ban: “the calculus of survival”, “sovereign mass”, “that admissio
 Never invent facts, figures, quotes, motives. Prefer primary sources (council ModernGov, GOV.UK, police, company, MP statements). Quotes verbatim. Other papers = leads only; original rewrite.
 
 ## Length
-Local news ~400–700 words unless material justifies more. Do not pad.
+Normal local news about 500–800 words. Use good judgment: enough for a proper paper piece — not thin, not padded.
 
 ## Endings
 Strong factual point, quote, number, deadline or next step — not an essay wrap-up.

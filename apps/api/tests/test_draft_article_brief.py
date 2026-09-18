@@ -19,6 +19,10 @@ def test_cp_brief_file_is_the_standing_house_style():
     assert "spine_body" in text
     assert "OPENAI" not in text and "XAI_API_KEY" not in text
     assert "Do not dilute" in text
+    assert "600–800" in text
+    assert "500–700" not in text
+    assert "usually too short" in text
+    assert "Do not pad" in text
 
 
 def test_local_brief_file_is_craft_without_cp_politics():
@@ -28,6 +32,9 @@ def test_local_brief_file_is_craft_without_cp_politics():
     assert "Redditch Standard" in text
     assert "PRO-BRITAIN, NOT PRO-GOVERNMENT" not in text
     assert "OPENAI" not in text and "XAI_API_KEY" not in text
+    assert "500–800" in text
+    assert "400–700" not in text
+    assert "not padded" in text
 
 
 def _outlet(**kwargs):
@@ -123,6 +130,8 @@ def test_go_draft_article_payload_includes_cp_brief(client):
     assert payload["brief_path"] == "apps/api/app/prompts/draft_article_conservative_post_v1.md"
     assert payload["base_brief"].strip()
     assert "PRO-BRITAIN, NOT PRO-GOVERNMENT" in payload["base_brief"]
+    assert "600–800" in payload["base_brief"]
+    assert "500–700" not in payload["base_brief"]
     assert payload["headline"]
     assert payload["slug"] == "midlands-councils-40m-social-care"
     assert payload["standfirst"]
@@ -143,6 +152,8 @@ def test_go_with_local_titles_only_uses_local_craft(client):
     assert payload["brief_version"] == "draft_article_local_v1"
     assert payload["base_brief"].strip()
     assert "Political CP line does NOT apply" in payload["base_brief"]
+    assert "500–800" in payload["base_brief"]
+    assert "400–700" not in payload["base_brief"]
     assert payload["primary_outlet"]["slug"] == "redditch-news"
     assert payload["house_style_label"] == "Local craft v1"
 

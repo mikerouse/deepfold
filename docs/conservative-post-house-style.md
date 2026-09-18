@@ -10,6 +10,10 @@ Local titles (Redditch Standard, Bromsgrove Standard, Worcester Observer, and ot
 
 When a journalist presses **Go** (or **Request rewrite**), the API enqueues `draft_article` with `brief_version`, `brief_path`, `base_brief` (this prompt), plus story context: `headline`, `slug`, `standfirst` / `abstract`, `spine` / `spine_body`, `geography`. The worker claims the job, writes to this house style, and completes with `headline`, `standfirst`, and `spine_body`. Deepfold stores the spine and a version.
 
+## Length (Mike, 18 Sep 2026)
+
+Target about **600–800 words** for a normal national news story. ~500 is usually too short unless the facts run out. Use good judgment. Do not pad. Short community pieces can be shorter. Major pieces longer only if justified.
+
 ## Routing
 
 - **Conservative Post / patriotic national** (seeded slug `conservative-post`, or a National-region patriotic title) → this brief, even if local titles are also selected (the spine is the national piece; locals get grafs from `localize_outlets`).
