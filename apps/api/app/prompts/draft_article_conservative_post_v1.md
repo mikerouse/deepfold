@@ -90,7 +90,7 @@ Never invent facts, figures, quotes, motives or criticism. Prefer primary source
 Never copy or synonym-swap another publication. Original rewrite from underlying facts.
 
 ## LENGTH
-Normal news ~500–700 words (up to ~800 if justified). Short local/community ~300–500. Do not pad.
+Target about 600–800 words for a normal national news story. ~500 is usually too short unless the facts run out. Use good judgment. Do not pad. Short community pieces can be shorter. Major pieces longer only if justified.
 
 ## ENDINGS
 No essay conclusions. End on strong quote, number, next step, deadline, previous promise, or delivery question. No “Worth reading in full” / ChatGPT source lists. Link sources naturally in CMS if needed.

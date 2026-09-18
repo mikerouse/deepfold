@@ -10,6 +10,10 @@ Grok Bot drafts; Deepfold **does not** hold vendor LLM keys. See [`architecture-
 
 When a journalist presses **Go** (or **Request rewrite**), the API enqueues `draft_article` with `brief_version`, `brief_path`, `base_brief` (this prompt), plus story context: `headline`, `slug`, `standfirst` / `abstract`, `spine` / `spine_body`, `geography`. The worker claims the job, writes local craft, and completes with `headline`, `standfirst`, and `spine_body`.
 
+## Length (Mike, 18 Sep 2026)
+
+Normal local news about **500–800 words**. Use good judgment: enough for a proper paper piece — not thin, not padded.
+
 ## Routing
 
 - **Conservative Post / patriotic national** → [`conservative-post-house-style.md`](conservative-post-house-style.md) / `draft_article_conservative_post_v1`.
